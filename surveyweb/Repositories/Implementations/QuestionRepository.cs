@@ -67,5 +67,28 @@ namespace SurveyWeb.Repositories.Implementations
                 await _ctx.questionOptions.AddRangeAsync(options);
             }
         }
+
+        // Implement method mới: Lấy options theo questionId
+        public async Task<IReadOnlyList<questionOption>> GetQuestionOptionsByQuestionIdAsync(Guid questionId)
+        {
+            return await _ctx.questionOptions
+                .Where(o => o.questionId == questionId)
+                .OrderBy(o => o.orderNo)
+                .ToListAsync();
+        }
+
+        // Implement method mới: Xóa tất cả options theo questionId
+        public async Task DeleteQuestionOptionsByQuestionIdAsync(Guid questionId)
+        {
+            var options = await _ctx.questionOptions
+                .Where(o => o.questionId == questionId)
+                .ToListAsync();
+
+            if (options.Any())
+            {
+                _ctx.questionOptions.RemoveRange(options);
+                // KHÔNG GỌI SaveChangesAsync() ở đây
+            }
+        }
     }
 }

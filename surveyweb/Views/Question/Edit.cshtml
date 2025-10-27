@@ -1,118 +1,311 @@
-@model SurveyWeb.Controllers.QuestionEditViewModel
+﻿@model SurveyWeb.Controllers.QuestionEditViewModel
 
 @{
-    ViewData["Title"] = "Ch?nh s?a c�u h?i";
+    ViewData["Title"] = "Chỉnh sửa câu hỏi";
 }
 
-<div class="max-w-xl mx-auto p-6">
+<div class="max-w-3xl mx-auto p-6">
     <div class="mb-4">
-        <div class="text-xs text-gray-500">Kh?o s�t</div>
+        <div class="text-xs text-gray-500">Khảo sát</div>
         <div class="text-lg font-semibold text-gray-900">@Model.SurveyTitle</div>
     </div>
 
-    <h1 class="text-xl font-bold text-gray-900 mb-4">Ch?nh s?a c�u h?i</h1>
+    <h1 class="text-xl font-bold text-gray-900 mb-4">Chỉnh sửa câu hỏi</h1>
 
     <form asp-action="Edit"
           asp-route-surveyId="@Model.SurveyId"
           asp-route-id="@Model.QuestionId"
           method="post"
           class="space-y-5 bg-white border border-gray-200 rounded-lg shadow p-5">
-
         @Html.AntiForgeryToken()
 
-        <!-- N?i dung c�u h?i -->
+        <input type="hidden" id="QuestionTypeCode" name="QuestionTypeCode" />
+
         <div class="space-y-1">
-            <label class="block text-sm font-medium text-gray-700">N?i dung c�u h?i</label>
-            <textarea name="Text"
-                      rows="3"
-                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="V� d?: B?n h�i l�ng m?c n�o v?i d?ch v? c?a ch�ng t�i?">@Model.Text</textarea>
-            <span class="text-red-600 text-xs"></span>
+            <label class="block text-sm font-medium text-gray-700">Nội dung câu hỏi</label>
+            <textarea name="Text" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">@Model.Text</textarea>
         </div>
 
-        <!-- Lo?i c�u h?i -->
         <div class="space-y-1">
-            <label class="block text-sm font-medium text-gray-700">Lo?i c�u h?i</label>
-            <select name="QuestionTypeId"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">-- Ch?n lo?i c�u h?i --</option>
+            <label class="block text-sm font-medium text-gray-700">Loại câu hỏi</label>
+            <select id="QuestionTypeId" name="QuestionTypeId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">-- Chọn loại câu hỏi --</option>
                 @foreach (var t in Model.AvailableTypes)
                 {
-                    @if (Model.QuestionTypeId == t.Id)
+                    if (Model.QuestionTypeId == t.Id)
                     {
-                        <option value="@t.Id" selected>@t.Name</option>
+                        <option value="@t.Id"
+                                data-code="@t.Code"
+                                data-name="@t.Name"
+                                data-supports-options="@(t.SupportsOptions.ToString().ToLowerInvariant())"
+                                selected="selected">
+                            @t.Name
+                        </option>
                     }
                     else
                     {
-                        <option value="@t.Id">@t.Name</option>
+                        <option value="@t.Id"
+                                data-code="@t.Code"
+                                data-name="@t.Name"
+                                data-supports-options="@(t.SupportsOptions.ToString().ToLowerInvariant())">
+                            @t.Name
+                        </option>
                     }
                 }
             </select>
             <div class="text-[11px] text-gray-400 leading-snug">
-                V� d?: Multiple Choice, Rating, Slider, v.v.
+                Chọn loại để hiển thị thiết lập phù hợp (Options, Rating, Matrix, Upload, AI, ...).
             </div>
         </div>
 
-        <!-- Th? t? hi?n th? -->
         <div class="space-y-1">
-            <label class="block text-sm font-medium text-gray-700">Th? t? (OrderNo)</label>
-            <input name="OrderNo"
-                   type="number"
-                   value="@Model.OrderNo"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                   placeholder="1, 2, 3..." />
-            <div class="text-[11px] text-gray-400 leading-snug">
-                Thay ??i th? t? hi?n th? c�u h?i.
-            </div>
+            <label class="block text-sm font-medium text-gray-700">Thứ tự (OrderNo)</label>
+            <input name="OrderNo" type="number" value="@Model.OrderNo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <span class="text-red-600 text-xs">@ViewData.ModelState["OrderNo"]?.Errors.FirstOrDefault()?.ErrorMessage</span>
         </div>
 
-        <!-- B?t bu?c tr? l?i -->
         <div class="space-y-1">
-            <label class="block text-sm font-medium text-gray-700">B?t bu?c tr? l?i?</label>
-            <select name="IsRequired"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-sm font-medium text-gray-700">Bắt buộc trả lời?</label>
+            <select name="IsRequired" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 @if (Model.IsRequired)
                 {
-                    <option value="false">Kh�ng</option>
-                    <option value="true" selected>C�</option>
+                    <option value="false">Không</option>
+                    <option value="true" selected>Có</option>
                 }
                 else
                 {
-                    <option value="false" selected>Kh�ng</option>
-                    <option value="true">C�</option>
+                    <option value="false" selected>Không</option>
+                    <option value="true">Có</option>
                 }
             </select>
         </div>
 
-        @if (!string.IsNullOrEmpty(ViewData.ModelState.Root?.Errors.FirstOrDefault()?.ErrorMessage))
-        {
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                @ViewData.ModelState.Root.Errors.FirstOrDefault()?.ErrorMessage
+        <div id="optionsPanel" class="space-y-2 hidden">
+            <label class="block text-sm font-medium text-gray-700">Các lựa chọn</label>
+            <div id="optionsContainer" class="space-y-2">
+                @{
+                    var opts = (Model.Options ?? new List<SurveyWeb.Controllers.QuestionOptionItem>()).OrderBy(o => o.OrderNo).ToList();
+                    if (opts.Count == 0)
+                    {
+                        opts = new List<SurveyWeb.Controllers.QuestionOptionItem>
+                        {
+                            new() { OrderNo = 1, Text = "" },
+                            new() { OrderNo = 2, Text = "" }
+                        };
+                    }
+                    for (int i = 0; i < opts.Count; i++)
+                    {
+                        <div class="flex gap-2 items-center option-row" data-index="@i">
+                            <input type="text" name="Options[@i]" value="@opts[i].Text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập lựa chọn @(@i + 1)" />
+                            <button type="button" class="remove-option px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">Xóa</button>
+                        </div>
+                    }
+                }
             </div>
-        }
+            <div>
+                <button id="addOptionBtn" type="button" class="mt-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">+ Thêm lựa chọn</button>
+            </div>
+            <div class="text-[11px] text-gray-400 leading-snug">Dùng cho Multiple Choice, Checkboxes, Dropdown, Rank Order, Rate the Choice, Rating Checkbox, Multi-level Dropdown, Constant Sum...</div>
+        </div>
 
-        <!-- N�t -->
+        <div id="numericPanel" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Min</label>
+                <input name="MinValue" type="number" step="any" value="@(Model.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Max</label>
+                <input name="MaxValue" type="number" step="any" value="@(Model.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Step</label>
+                <input name="Step" type="number" step="any" value="@(Model.Step?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="col-span-full text-[11px] text-gray-400 leading-snug">Dùng cho Rating, Slider, Number, NPS (Min=0, Max=10, Step=1).</div>
+        </div>
+
+        <div id="maxCharsPanel" class="space-y-1 hidden">
+            <label class="block text-sm font-medium text-gray-700">Giới hạn ký tự (Max chars)</label>
+            <input name="MaxChars" type="number" value="@(Model.MaxChars?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div class="text-[11px] text-gray-400 leading-snug">Dùng cho Single/Multiple Textbox, Email, Mobile Phone, Name, Address,...</div>
+        </div>
+
+        <div id="uploadPanel" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Allowed MIME(s)</label>
+                <input name="AllowedMime" type="text" value="@Model.AllowedMime" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="image/*,application/pdf" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Max files</label>
+                <input name="MaxFiles" type="number" value="@(Model.MaxFiles?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Max size (MB)</label>
+                <input name="MaxFileSizeMB" type="number" value="@(Model.MaxFileSizeMB?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+        </div>
+
+        <div id="matrixPanel" class="space-y-2 hidden">
+            <label class="block text-sm font-medium text-gray-700">Matrix/Table cấu hình (JSON)</label>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="space-y-1 md:col-span-1">
+                    <label class="block text-sm text-gray-600">Rows JSON</label>
+                    <textarea name="MatrixRowsJson" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">@Model.MatrixRowsJson</textarea>
+                </div>
+                <div class="space-y-1 md:col-span-1">
+                    <label class="block text-sm text-gray-600">Cols JSON</label>
+                    <textarea name="MatrixColsJson" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">@Model.MatrixColsJson</textarea>
+                </div>
+                <div class="space-y-1 md:col-span-1">
+                    <label class="block text-sm text-gray-600">Scale/Labels JSON</label>
+                    <textarea name="ScaleLabelsJson" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">@Model.ScaleLabelsJson</textarea>
+                </div>
+            </div>
+            <div class="text-[11px] text-gray-400 leading-snug">Dùng cho Matrix Radio/Checkbox/Rating/Slider/Text, Table Text/Values/Dropdown/Combination, Auto-increment Table.</div>
+        </div>
+
+        <div id="aiPanel" class="space-y-1 hidden">
+            <label class="block text-sm font-medium text-gray-700">AI Probing</label>
+            <select name="AiProbeEnabled" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @if (Model.AiProbeEnabled)
+                {
+                    <option value="false">Tắt</option>
+                    <option value="true" selected>Bật</option>
+                }
+                else
+                {
+                    <option value="false" selected>Tắt</option>
+                    <option value="true">Bật</option>
+                }
+            </select>
+            <div class="text-[11px] text-gray-400 leading-snug">Dùng cho AI Probing, Media AI Recognition.</div>
+        </div>
+
         <div class="flex justify-end gap-3 pt-4">
-            <a href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })"
-               class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">
-                H?y
-            </a>
-
-            <button type="submit"
-                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
-                C?p nh?t c�u h?i
-            </button>
+            <a href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">Hủy</a>
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Lưu</button>
         </div>
     </form>
-
-    <div class="mt-6">
-        <a class="text-indigo-600 text-sm hover:underline"
-           href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })">
-            ? Quay l?i danh s�ch c�u h?i
-        </a>
-    </div>
 </div>
 
 @section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
+<script>
+(function(){
+    const typeSelect = document.getElementById('QuestionTypeId');
+    const codeHidden = document.getElementById('QuestionTypeCode');
+
+    const optionsPanel = document.getElementById('optionsPanel');
+    const numericPanel = document.getElementById('numericPanel');
+    const maxCharsPanel = document.getElementById('maxCharsPanel');
+    const uploadPanel = document.getElementById('uploadPanel');
+    const matrixPanel = document.getElementById('matrixPanel');
+    const aiPanel = document.getElementById('aiPanel');
+
+    const optionsContainer = document.getElementById('optionsContainer');
+    const addOptionBtn = document.getElementById('addOptionBtn');
+
+    function slugify(s) {
+        return (s || '').toString().trim().toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '');
+    }
+
+    // map many display names to our categories
+    const optionCodes = new Set([
+        'multiple-choice','checkboxes','dropdown','rank-order','rate-the-choice','rating-checkbox','single-choice',
+        'multi-level-dropdown','constant-sum','table-dropdown' // table dropdown also uses options list
+    ]);
+    const numericCodes = new Set(['rating','slider','number','nps','nps®','nps-','nps10']);
+    const textCodes = new Set([
+        'single-textbox','multiple-textbox','text','textarea','name','basic-information','gender','age-group',
+        'mobile-phone','email','education','marital-status','country-and-region','occupation','address','table-text','matrix-text','matrix-text-alt'
+    ]);
+    const uploadCodes = new Set(['upload','file-upload']);
+    const matrixCodes = new Set(['matrix-radio','matrix-checkbox','matrix-rating','matrix-slider','matrix-text','matrix-text-alt']);
+    const tableCodes = new Set(['table-text','table-values','table-dropdown','table-combination','auto-increment-table']);
+    const aiCodes = new Set(['ai-probing','media-ai-recognition']);
+    const flowCodes = new Set(['new-page','one-question-per-page','informational-block','page-timer','signature','map','date','time','carousel','maxdiff','conjoint-analysis','kano','psm','review','rank-order-advanced']);
+
+    function selectedKey() {
+        const sel = typeSelect.options[typeSelect.selectedIndex];
+        if (!sel) return '';
+        const code = sel.getAttribute('data-code') || '';
+        if (code) return slugify(code);
+        const name = sel.getAttribute('data-name') || sel.textContent || '';
+        return slugify(name);
+    }
+
+    function toggle(node, show) { node.classList.toggle('hidden', !show); }
+
+    function togglePanels() {
+        const key = selectedKey();
+        codeHidden.value = key;
+
+        const supportsOptions = (typeSelect.options[typeSelect.selectedIndex]?.getAttribute('data-supports-options') === 'true');
+
+        const showOptions = supportsOptions || optionCodes.has(key);
+        const showNumeric = numericCodes.has(key);
+        const showText = textCodes.has(key);
+        const showUpload = uploadCodes.has(key);
+        const showMatrix = matrixCodes.has(key) || tableCodes.has(key);
+        const showAi = aiCodes.has(key);
+
+        toggle(optionsPanel, showOptions);
+        toggle(numericPanel, showNumeric);
+        toggle(maxCharsPanel, showText);
+        toggle(uploadPanel, showUpload);
+        toggle(matrixPanel, showMatrix);
+        toggle(aiPanel, showAi);
+
+        // NPS presets
+        if (key.startsWith('nps')) {
+            const minEl = document.querySelector('input[name="MinValue"]');
+            const maxEl = document.querySelector('input[name="MaxValue"]');
+            const stepEl = document.querySelector('input[name="Step"]');
+            if (minEl && !minEl.value) minEl.value = '0';
+            if (maxEl && !maxEl.value) maxEl.value = '10';
+            if (stepEl && !stepEl.value) stepEl.value = '1';
+        }
+    }
+
+    function reindexOptions() {
+        const rows = document.querySelectorAll('.option-row');
+        rows.forEach((row, idx) => {
+            const input = row.querySelector('input[type="text"]');
+            if (input) {
+                input.name = `Options[${idx}]`;
+                input.placeholder = `Nhập lựa chọn ${idx + 1}`;
+            }
+        });
+    }
+
+    function addOptionRow(val) {
+        const idx = document.querySelectorAll('.option-row').length;
+        const row = document.createElement('div');
+        row.className = 'flex gap-2 items-center option-row';
+        row.innerHTML = `
+            <input type="text" name="Options[${idx}]"
+                   value="${val || ''}"
+                   class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   placeholder="Nhập lựa chọn ${idx + 1}" />
+            <button type="button" class="remove-option px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">Xóa</button>
+        `;
+        optionsContainer.appendChild(row);
+    }
+
+    if (addOptionBtn) {
+        addOptionBtn.addEventListener('click', () => { addOptionRow(''); reindexOptions(); });
+    }
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('remove-option')) {
+            e.target.closest('.option-row').remove();
+            reindexOptions();
+        }
+    });
+
+    typeSelect.addEventListener('change', togglePanels);
+    togglePanels();
+})();
+</script>
 }

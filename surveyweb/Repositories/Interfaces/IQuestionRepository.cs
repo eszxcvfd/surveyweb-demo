@@ -1,16 +1,20 @@
-using SurveyWeb.Data.Models;
+﻿using SurveyWeb.Data.Models;
 
 namespace SurveyWeb.Repositories.Interfaces
 {
     public interface IQuestionRepository
     {
-        Task<IEnumerable<question>> GetBySurveyAsync(Guid surveyId);
         Task<question?> GetByIdAsync(Guid id);
-        Task AddAsync(question question);
-        Task UpdateAsync(question question);
+        Task<IEnumerable<question>> GetBySurveyAsync(Guid surveyId);
+        Task<IEnumerable<questionType>> GetAllQuestionTypesAsync();
+        Task AddAsync(question entity);
+        Task UpdateAsync(question entity);
         Task DeleteAsync(Guid id);
         Task SaveChangesAsync();
-        Task<IEnumerable<questionType>> GetAllQuestionTypesAsync();
         Task AddOptionsAsync(List<questionOption> options);
+        
+        // Thêm 2 methods mới
+        Task<IReadOnlyList<questionOption>> GetQuestionOptionsByQuestionIdAsync(Guid questionId);
+        Task DeleteQuestionOptionsByQuestionIdAsync(Guid questionId);
     }
 }

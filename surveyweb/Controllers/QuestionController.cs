@@ -99,9 +99,47 @@ namespace SurveyWeb.Controllers
                         Name = qt.displayName,
                         Code = qt.internalCode,
                         SupportsOptions = qt.supportsOptions
-                    }).ToList()
+                    }).ToList(),
+                    Options = (form.Options ?? new List<string>())
+                        .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
+                        .ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars
                 };
 
+                return View(vmRetry);
+            }
+
+            // In Create POST, just after ModelState.IsValid check passes and before creating entity:
+            var all = await _questionService.GetSurveyQuestionsAsync(surveyId);
+            if (all.Any(x => x.orderNo == form.OrderNo))
+            {
+                ModelState.AddModelError("OrderNo", "Thứ tự này đã được sử dụng. Vui lòng chọn số khác.");
+                var survey = await _surveyService.GetAsync(surveyId);
+                var questionTypes = await _questionService.GetQuestionTypesAsync();
+                var vmRetry = new QuestionCreateViewModel
+                {
+                    SurveyId = surveyId,
+                    SurveyTitle = survey?.title ?? "",
+                    Text = form.Text,
+                    OrderNo = form.OrderNo,
+                    IsRequired = form.IsRequired,
+                    QuestionTypeId = form.QuestionTypeId,
+                    AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
+                    {
+                        Id = qt.questionTypeId,
+                        Name = qt.displayName,
+                        Code = qt.internalCode,
+                        SupportsOptions = qt.supportsOptions
+                    }).ToList(),
+                    Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars
+                };
                 return View(vmRetry);
             }
 
@@ -118,12 +156,19 @@ namespace SurveyWeb.Controllers
                     minValue = form.MinValue,
                     maxValue = form.MaxValue,
                     step = form.Step,
-                    maxChars = form.MaxChars
+                    maxChars = form.MaxChars,
+                    // new fields
+                    allowedMime = form.AllowedMime,
+                    maxFiles = form.MaxFiles,
+                    maxFileSizeMB = form.MaxFileSizeMB,
+                    matrixRowsJson = form.MatrixRowsJson,
+                    matrixColsJson = form.MatrixColsJson,
+                    scaleLabelsJson = form.ScaleLabelsJson,
+                    aiProbeEnabled = form.AiProbeEnabled
                 };
 
                 var createdQuestion = await _questionService.CreateQuestionAsync(surveyId, entity);
-                
-                // Thêm options nếu có
+
                 if (form.Options != null && form.Options.Any())
                 {
                     await _questionService.AddQuestionOptionsAsync(createdQuestion._id, form.Options);
@@ -135,7 +180,7 @@ namespace SurveyWeb.Controllers
             catch (Exception ex)
             {
                 ModelState.AddModelError("", "Lỗi khi tạo câu hỏi: " + ex.Message);
-                
+
                 var survey = await _surveyService.GetAsync(surveyId);
                 var questionTypes = await _questionService.GetQuestionTypesAsync();
 
@@ -153,7 +198,14 @@ namespace SurveyWeb.Controllers
                         Name = qt.displayName,
                         Code = qt.internalCode,
                         SupportsOptions = qt.supportsOptions
-                    }).ToList()
+                    }).ToList(),
+                    Options = (form.Options ?? new List<string>())
+                        .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
+                        .ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars
                 };
 
                 return View(vmError);
@@ -165,36 +217,43 @@ namespace SurveyWeb.Controllers
         public async Task<IActionResult> Edit(Guid surveyId, Guid id)
         {
             var survey = await _surveyService.GetAsync(surveyId);
-            if (survey == null)
-            {
-                return NotFound("Survey not found");
-            }
+            if (survey == null) return NotFound("Survey not found");
 
-            var question = await _questionService.GetQuestionByIdAsync(id);
-            if (question == null)
-            {
-                return NotFound("Question not found");
-            }
+            var q = await _questionService.GetQuestionByIdAsync(id);
+            if (q == null) return NotFound("Question not found");
 
             var questionTypes = await _questionService.GetQuestionTypesAsync();
+            var options = await _questionService.GetQuestionOptionsAsync(id); // trả về List<string> hoặc list model
 
             var vm = new QuestionEditViewModel
             {
-                QuestionId = question._id,
+                QuestionId = q._id,
                 SurveyId = surveyId,
                 SurveyTitle = survey.title,
-                Text = question.text,
-                OrderNo = question.orderNo,
-                IsRequired = question.isRequired,
-                QuestionTypeId = question.questionTypeId,
-                AvailableTypes = questionTypes
-                    .Select(qt => new QuestionTypeOption
-                    {
-                        Id = qt.questionTypeId,
-                        Name = qt.displayName,
-                        Code = qt.internalCode,
-                        SupportsOptions = qt.supportsOptions
-                    })
+                Text = q.text,
+                OrderNo = q.orderNo,
+                IsRequired = q.isRequired,
+                QuestionTypeId = q.questionTypeId,
+                AvailableTypes = questionTypes.Select(t => new QuestionTypeOption
+                {
+                    Id = t.questionTypeId,
+                    Name = t.displayName,
+                    Code = t.internalCode,
+                    SupportsOptions = t.supportsOptions
+                }).ToList(),
+                MinValue = q.minValue,
+                MaxValue = q.maxValue,
+                Step = q.step,
+                MaxChars = q.maxChars,
+                AllowedMime = q.allowedMime,
+                MaxFiles = q.maxFiles,
+                MaxFileSizeMB = q.maxFileSizeMB,
+                MatrixRowsJson = q.matrixRowsJson,
+                MatrixColsJson = q.matrixColsJson,
+                ScaleLabelsJson = q.scaleLabelsJson,
+                AiProbeEnabled = q.aiProbeEnabled,
+                Options = (options ?? new List<string>())
+                    .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o })
                     .ToList()
             };
 
@@ -222,30 +281,111 @@ namespace SurveyWeb.Controllers
                     AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
                     {
                         Id = qt.questionTypeId,
-                        Name = qt.displayName
-                    }).ToList()
+                        Name = qt.displayName,
+                        Code = qt.internalCode,
+                        SupportsOptions = qt.supportsOptions
+                    }).ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars,
+                    AllowedMime = form.AllowedMime,
+                    MaxFiles = form.MaxFiles,
+                    MaxFileSizeMB = form.MaxFileSizeMB,
+                    MatrixRowsJson = form.MatrixRowsJson,
+                    MatrixColsJson = form.MatrixColsJson,
+                    ScaleLabelsJson = form.ScaleLabelsJson,
+                    AiProbeEnabled = form.AiProbeEnabled,
+                    Options = (form.Options ?? new List<string>())
+                        .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
+                        .ToList()
                 };
 
                 return View(vmRetry);
             }
 
+            // In Edit POST, BEFORE calling service: validate unique OrderNo
+            var allInSurvey = await _questionService.GetSurveyQuestionsAsync(surveyId);
+            if (allInSurvey.Any(x => x.orderNo == form.OrderNo && x._id != id))
+            {
+                ModelState.AddModelError("OrderNo", "Thứ tự này đã được sử dụng. Vui lòng chọn số khác.");
+                var survey = await _surveyService.GetAsync(surveyId);
+                var questionTypes = await _questionService.GetQuestionTypesAsync();
+                var vmRetry = new QuestionEditViewModel
+                {
+                    QuestionId = id,
+                    SurveyId = surveyId,
+                    SurveyTitle = survey?.title ?? "",
+                    Text = form.Text,
+                    OrderNo = form.OrderNo,
+                    IsRequired = form.IsRequired,
+                    QuestionTypeId = form.QuestionTypeId,
+                    AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
+                    {
+                        Id = qt.questionTypeId,
+                        Name = qt.displayName,
+                        Code = qt.internalCode,
+                        SupportsOptions = qt.supportsOptions
+                    }).ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars,
+                    AllowedMime = form.AllowedMime,
+                    MaxFiles = form.MaxFiles,
+                    MaxFileSizeMB = form.MaxFileSizeMB,
+                    MatrixRowsJson = form.MatrixRowsJson,
+                    MatrixColsJson = form.MatrixColsJson,
+                    ScaleLabelsJson = form.ScaleLabelsJson,
+                    AiProbeEnabled = form.AiProbeEnabled,
+                    Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList()
+                };
+                return View(vmRetry);
+            }
+
             try
             {
-                var success = await _questionService.UpdateQuestionAsync(id, form.Text, form.OrderNo, form.IsRequired, form.QuestionTypeId);
-                
-                if (!success)
+                // Cập nhật phần thông tin câu hỏi chính (bao gồm type + cấu hình)
+                // THÊM CÁC THAM SỐ MỚI VÀO ĐÂY
+                    var updated = await _questionService.UpdateQuestionAsync(
+                    id,
+                    form.Text,
+                    form.OrderNo,
+                    form.IsRequired,
+                    form.QuestionTypeId,
+                    form.QuestionTypeCode,
+                    form.MinValue,
+                    form.MaxValue,
+                    form.Step,
+                    form.MaxChars,
+                    form.AllowedMime,        // ← Thêm
+                    form.MaxFiles,           // ← Thêm
+                    form.MaxFileSizeMB,      // ← Thêm
+                    form.MatrixRowsJson,     // ← Thêm
+                    form.MatrixColsJson,     // ← Thêm
+                    form.ScaleLabelsJson,    // ← Thêm
+                    form.AiProbeEnabled      // ← Thêm
+                );
+
+                if (!updated)
                 {
                     TempData["ErrorMessage"] = "Không tìm thấy câu hỏi để cập nhật.";
-                    return RedirectToAction("List", new { surveyId = surveyId });
+                    return RedirectToAction("List", new { surveyId });
+                }
+
+                // Nếu loại hỗ trợ options: thay thế danh sách lựa chọn
+                if (form.Options != null)
+                {
+                    await _questionService.ReplaceQuestionOptionsAsync(id, form.Options);
                 }
 
                 TempData["SuccessMessage"] = "Đã cập nhật câu hỏi thành công!";
-                return RedirectToAction("List", new { surveyId = surveyId });
+                return RedirectToAction("List", new { surveyId });
             }
             catch (Exception ex)
             {
                 ModelState.AddModelError("", "Lỗi khi cập nhật câu hỏi: " + ex.Message);
-                
+
                 var survey = await _surveyService.GetAsync(surveyId);
                 var questionTypes = await _questionService.GetQuestionTypesAsync();
 
@@ -261,8 +401,24 @@ namespace SurveyWeb.Controllers
                     AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
                     {
                         Id = qt.questionTypeId,
-                        Name = qt.displayName
-                    }).ToList()
+                        Name = qt.displayName,
+                        Code = qt.internalCode,
+                        SupportsOptions = qt.supportsOptions
+                    }).ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars,
+                    AllowedMime = form.AllowedMime,
+                    MaxFiles = form.MaxFiles,
+                    MaxFileSizeMB = form.MaxFileSizeMB,
+                    MatrixRowsJson = form.MatrixRowsJson,
+                    MatrixColsJson = form.MatrixColsJson,
+                    ScaleLabelsJson = form.ScaleLabelsJson,
+                    AiProbeEnabled = form.AiProbeEnabled,
+                    Options = (form.Options ?? new List<string>())
+                        .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
+                        .ToList()
                 };
 
                 return View(vmError);
@@ -352,6 +508,15 @@ namespace SurveyWeb.Controllers
         public double? MaxValue { get; set; }
         public double? Step { get; set; }
         public int? MaxChars { get; set; }
+
+        // New: Upload / Matrix / AI
+        public string? AllowedMime { get; set; }
+        public int? MaxFiles { get; set; }
+        public int? MaxFileSizeMB { get; set; }
+        public string? MatrixRowsJson { get; set; }
+        public string? MatrixColsJson { get; set; }
+        public string? ScaleLabelsJson { get; set; }
+        public bool AiProbeEnabled { get; set; }
     }
 
     public class QuestionEditViewModel
@@ -364,6 +529,22 @@ namespace SurveyWeb.Controllers
         public bool IsRequired { get; set; }
         public int? QuestionTypeId { get; set; }
         public List<QuestionTypeOption> AvailableTypes { get; set; } = new();
+
+        // Thêm các trường để UI Edit giống Create
+        public List<QuestionOptionItem> Options { get; set; } = new();
+        public double? MinValue { get; set; }
+        public double? MaxValue { get; set; }
+        public double? Step { get; set; }
+        public int? MaxChars { get; set; }
+
+        // New fields for Upload / Matrix / AI
+        public string? AllowedMime { get; set; }
+        public int? MaxFiles { get; set; }
+        public int? MaxFileSizeMB { get; set; }
+        public string? MatrixRowsJson { get; set; }
+        public string? MatrixColsJson { get; set; }
+        public string? ScaleLabelsJson { get; set; }
+        public bool AiProbeEnabled { get; set; }
     }
 
     public class QuestionEditPostModel
@@ -372,5 +553,22 @@ namespace SurveyWeb.Controllers
         public int OrderNo { get; set; }
         public bool IsRequired { get; set; }
         public int? QuestionTypeId { get; set; }
+
+        // Thêm các trường cần post về (giống Create)
+        public string? QuestionTypeCode { get; set; }
+        public List<string>? Options { get; set; }
+        public double? MinValue { get; set; }
+        public double? MaxValue { get; set; }
+        public double? Step { get; set; }
+        public int? MaxChars { get; set; }
+
+        // New fields
+        public string? AllowedMime { get; set; }
+        public int? MaxFiles { get; set; }
+        public int? MaxFileSizeMB { get; set; }
+        public string? MatrixRowsJson { get; set; }
+        public string? MatrixColsJson { get; set; }
+        public string? ScaleLabelsJson { get; set; }
+        public bool AiProbeEnabled { get; set; }
     }
 }

@@ -1,369 +1,245 @@
 ﻿@model SurveyWeb.Controllers.QuestionCreateViewModel
-
 @{
     ViewData["Title"] = "Thêm câu hỏi";
 }
 
-<style>
-    .hidden { display: none !important; }
-    .option-item { animation: slideIn 0.3s ease-out; }
-    @@keyframes slideIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
+<div class="max-w-3xl mx-auto p-6">
+    <h1 class="text-xl font-bold text-gray-900 mb-4">Thêm câu hỏi mới</h1>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+            <strong>Có lỗi xảy ra:</strong>
+            <ul class="list-disc list-inside mt-2">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                { <li>@error.ErrorMessage</li> }
+            </ul>
+        </div>
     }
-</style>
 
-<div style="max-width: 900px; margin: 0 auto; padding: 1.5rem;">
-    <div style="margin-bottom: 1rem;">
-        <div style="font-size: 0.75rem; color: #6B7280;">Khảo sát</div>
-        <h1 style="font-size: 1.5rem; font-weight: bold; color: #111827;">@Model.SurveyTitle</h1>
-    </div>
-
-    <form asp-action="Create"
-          asp-route-surveyId="@Model.SurveyId"
-          method="post"
-          id="questionForm"
-          style="background: white; border: 1px solid #E5E7EB; border-radius: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 2rem;">
-
+    <form asp-action="Create" asp-route-surveyId="@Model.SurveyId" method="post" class="space-y-5 bg-white border border-gray-200 rounded-lg shadow p-5">
         @Html.AntiForgeryToken()
+        <input type="hidden" id="QuestionTypeCode" name="QuestionTypeCode" />
 
-        <!-- Nội dung câu hỏi -->
-        <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                📝 Nội dung câu hỏi <span style="color: #DC2626;">*</span>
-            </label>
-            <textarea name="Text"
-                      id="questionText"
-                      rows="3"
-                      required
-                      style="width: 100%; border: 2px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem; outline: none; transition: border-color 0.2s;"
-                      onfocus="this.style.borderColor='#6366F1'"
-                      onblur="this.style.borderColor='#D1D5DB'"
-                      placeholder="Ví dụ: Bạn hài lòng mức nào với dịch vụ của chúng tôi?">@Model.Text</textarea>
+        <div class="text-sm text-gray-500">Khảo sát: <span class="font-medium text-gray-900">@Model.SurveyTitle</span></div>
+
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Nội dung câu hỏi</label>
+            <input name="Text" value="@Model.Text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
-        <!-- Loại câu hỏi -->
-        <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                🎯 Loại câu hỏi <span style="color: #DC2626;">*</span>
-            </label>
-            <select name="QuestionTypeId"
-                    id="questionTypeSelect"
-                    required
-                    onchange="handleQuestionTypeChange(this)"
-                    style="width: 100%; border: 2px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem; outline: none; background: white; cursor: pointer;">
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Loại câu hỏi</label>
+            <select id="QuestionTypeId" name="QuestionTypeId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">-- Chọn loại câu hỏi --</option>
                 @foreach (var t in Model.AvailableTypes)
                 {
-                    @if (Model.QuestionTypeId == t.Id)
+                    if (Model.QuestionTypeId.HasValue && Model.QuestionTypeId.Value == t.Id)
                     {
-                        <option value="@t.Id" 
-                                data-code="@t.Code" 
-                                data-supports-options="@t.SupportsOptions.ToString().ToLower()"
-                                selected>@t.Name</option>
+                        <option value="@t.Id" data-code="@t.Code" data-name="@t.Name" data-supports-options="@(t.SupportsOptions.ToString().ToLowerInvariant())" selected="selected">@t.Name</option>
                     }
                     else
                     {
-                        <option value="@t.Id" 
-                                data-code="@t.Code" 
-                                data-supports-options="@t.SupportsOptions.ToString().ToLower()">@t.Name</option>
+                        <option value="@t.Id" data-code="@t.Code" data-name="@t.Name" data-supports-options="@(t.SupportsOptions.ToString().ToLowerInvariant())">@t.Name</option>
                     }
                 }
             </select>
-            <input type="hidden" name="QuestionTypeCode" id="questionTypeCode" />
-            <div style="font-size: 0.75rem; color: #6B7280; margin-top: 0.5rem;">
-                💡 Chọn loại câu hỏi để hiển thị các tùy chọn phù hợp
-            </div>
+            <div class="text-[11px] text-gray-400 leading-snug">Ví dụ: Multiple Choice, Rating, Slider, Date, Upload, Matrix...</div>
         </div>
 
-        <!-- Dynamic Options Area -->
-        <div id="dynamicOptionsArea" style="margin-bottom: 1.5rem; display: none;">
-            
-            <!-- MULTIPLE CHOICE / CHECKBOXES / DROPDOWN OPTIONS -->
-            <div id="choiceOptionsSection" class="hidden">
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem;">
-                    ☑️ Các lựa chọn
-                </label>
-                <div id="optionsList" style="margin-bottom: 0.75rem;">
-                    <!-- Options will be added here dynamically -->
-                </div>
-                <button type="button" 
-                        onclick="addOption()"
-                        style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 0.5rem; font-size: 0.875rem; cursor: pointer; font-weight: 500; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);">
-                    ➕ Thêm lựa chọn
-                </button>
-            </div>
-
-            <!-- RATING / SLIDER / NPS SECTION -->
-            <div id="ratingSection" class="hidden">
-                <div style="background: #F9FAFB; border: 2px dashed #E5E7EB; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
-                    <div style="font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">
-                        📊 Cài đặt thang điểm
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #6B7280; margin-bottom: 0.5rem;">
-                                Giá trị tối thiểu
-                            </label>
-                            <input type="number" 
-                                   name="MinValue" 
-                                   id="minValue"
-                                   value="1"
-                                   style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.375rem; padding: 0.5rem; font-size: 0.875rem;" />
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #6B7280; margin-bottom: 0.5rem;">
-                                Giá trị tối đa
-                            </label>
-                            <input type="number" 
-                                   name="MaxValue" 
-                                   id="maxValue"
-                                   value="5"
-                                   style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.375rem; padding: 0.5rem; font-size: 0.875rem;" />
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 0.75rem; font-weight: 500; color: #6B7280; margin-bottom: 0.5rem;">
-                                Bước nhảy
-                            </label>
-                            <input type="number" 
-                                   name="Step" 
-                                   id="stepValue"
-                                   value="1"
-                                   step="0.1"
-                                   style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.375rem; padding: 0.5rem; font-size: 0.875rem;" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TEXT INPUT SECTION -->
-            <div id="textSection" class="hidden">
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                    📏 Số ký tự tối đa
-                </label>
-                <input type="number" 
-                       name="MaxChars" 
-                       id="maxChars"
-                       placeholder="Ví dụ: 500"
-                       style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem;" />
-                <div style="font-size: 0.75rem; color: #6B7280; margin-top: 0.5rem;">
-                    💡 Để trống = không giới hạn
-                </div>
-            </div>
-
-            <!-- UPLOAD FILE SECTION -->
-            <div id="uploadSection" class="hidden">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div>
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                            📁 Số file tối đa
-                        </label>
-                        <input type="number" 
-                               name="MaxFiles" 
-                               placeholder="Ví dụ: 5"
-                               style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem;" />
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                            💾 Kích thước tối đa (MB)
-                        </label>
-                        <input type="number" 
-                               name="MaxFileSizeMB" 
-                               placeholder="Ví dụ: 10"
-                               style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem;" />
-                    </div>
-                </div>
-            </div>
-
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Thứ tự (OrderNo)</label>
+            <input name="OrderNo" type="number" value="@(Model.OrderNo == 0 ? 1 : Model.OrderNo)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <span class="text-red-600 text-xs">@ViewData.ModelState["OrderNo"]?.Errors.FirstOrDefault()?.ErrorMessage</span>
         </div>
 
-        <!-- Thứ tự & Bắt buộc -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-            <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                    🔢 Thứ tự hiển thị
-                </label>
-                <input name="OrderNo"
-                       type="number"
-                       value="@Model.OrderNo"
-                       style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem;"
-                       placeholder="0 = tự động" />
-                <div style="font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem;">
-                    Để 0 để hệ thống tự sắp xếp
-                </div>
-            </div>
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Bắt buộc trả lời?</label>
+            <select name="IsRequired" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @if (Model.IsRequired)
+                { <option value="false">Không</option><option value="true" selected>Có</option> }
+                else
+                { <option value="false" selected>Không</option><option value="true">Có</option> }
+            </select>
+        </div>
 
-            <div>
-                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">
-                    ⚠️ Bắt buộc trả lời?
-                </label>
-                <select name="IsRequired"
-                        style="width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem; background: white; cursor: pointer;">
-                    @if (Model.IsRequired)
+        <div id="optionsPanel" class="space-y-2 hidden">
+            <label class="block text-sm font-medium text-gray-700">Các lựa chọn</label>
+            <div id="optionsContainer" class="space-y-2">
+                @{
+                    var existingOptions = (Model.Options ?? new List<SurveyWeb.Controllers.QuestionOptionItem>()).OrderBy(o => o.OrderNo).ToList();
+                    if (existingOptions.Count == 0)
                     {
-                        <option value="false">Không</option>
-                        <option value="true" selected>Có</option>
+                        existingOptions = new List<SurveyWeb.Controllers.QuestionOptionItem>
+                        {
+                            new() { OrderNo = 1, Text = "" },
+                            new() { OrderNo = 2, Text = "" }
+                        };
                     }
-                    else
+                    for (int i = 0; i < existingOptions.Count; i++)
                     {
-                        <option value="false" selected>Không</option>
-                        <option value="true">Có</option>
+                        <div class="flex gap-2 items-center option-row" data-index="@i">
+                            <input type="text" name="Options[@i]" value="@existingOptions[i].Text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập lựa chọn @(@i + 1)" />
+                            <button type="button" class="remove-option px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">Xóa</button>
+                        </div>
                     }
-                </select>
+                }
+            </div>
+            <div><button id="addOptionBtn" type="button" class="mt-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">+ Thêm lựa chọn</button></div>
+            <div class="text-[11px] text-gray-400 leading-snug">Dùng cho Multiple Choice, Checkboxes, Dropdown, Rank Order, Rate the Choice, Rating Checkbox, Multi-level Dropdown, Constant Sum...</div>
+        </div>
+
+        <div id="numericPanel" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Giá trị nhỏ nhất (Min)</label>
+                <input name="MinValue" type="number" step="any" value="@(Model.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Giá trị lớn nhất (Max)</label>
+                <input name="MaxValue" type="number" step="any" value="@(Model.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Bước nhảy (Step)</label>
+                <input name="Step" type="number" step="any" value="@(Model.Step?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="col-span-full text-[11px] text-gray-400 leading-snug">Dùng cho Rating/Slider/Number/NPS.</div>
+        </div>
+
+        <div id="maxCharsPanel" class="space-y-1 hidden">
+            <label class="block text-sm font-medium text-gray-700">Giới hạn ký tự (Max chars)</label>
+            <input name="MaxChars" type="number" value="@(Model.MaxChars?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div class="text-[11px] text-gray-400 leading-snug">Dùng cho Single/Multiple Textbox, Email, Mobile Phone, Name, Address,...</div>
+        </div>
+
+        <div id="uploadPanel" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Allowed MIME(s)</label>
+                <input name="AllowedMime" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="image/*,application/pdf" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Max files</label>
+                <input name="MaxFiles" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Max size (MB)</label>
+                <input name="MaxFileSizeMB" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
         </div>
 
-        @if (!string.IsNullOrEmpty(ViewData.ModelState.Root?.Errors.FirstOrDefault()?.ErrorMessage))
-        {
-            <div style="background: #FEE2E2; border: 1px solid #FCA5A5; color: #DC2626; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-bottom: 1rem;">
-                ⚠️ @ViewData.ModelState.Root.Errors.FirstOrDefault()?.ErrorMessage
+        <div id="matrixPanel" class="space-y-2 hidden">
+            <label class="block text-sm font-medium text-gray-700">Matrix/Table cấu hình (JSON)</label>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="space-y-1 md:col-span-1">
+                    <label class="block text-sm text-gray-600">Rows JSON</label>
+                    <textarea name="MatrixRowsJson" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div class="space-y-1 md:col-span-1">
+                    <label class="block text-sm text-gray-600">Cols JSON</label>
+                    <textarea name="MatrixColsJson" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div class="space-y-1 md:col-span-1">
+                    <label class="block text-sm text-gray-600">Scale/Labels JSON</label>
+                    <textarea name="ScaleLabelsJson" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
             </div>
-        }
+        </div>
 
-        <!-- Buttons -->
-        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1.5rem; border-top: 2px solid #F3F4F6;">
-            <a href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })"
-               style="padding: 0.75rem 1.5rem; border: 2px solid #D1D5DB; border-radius: 0.5rem; color: #374151; font-size: 0.875rem; font-weight: 500; text-decoration: none; display: inline-block;">
-                ❌ Hủy
-            </a>
+        <div id="aiPanel" class="space-y-1 hidden">
+            <label class="block text-sm font-medium text-gray-700">AI Probing</label>
+            <select name="AiProbeEnabled" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="false" selected>Tắt</option>
+                <option value="true">Bật</option>
+            </select>
+        </div>
 
-            <button type="submit"
-                    style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);">
-                💾 Lưu câu hỏi
-            </button>
+        <div class="flex justify-end gap-3 pt-4">
+            <a href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">Hủy</a>
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Lưu câu hỏi</button>
         </div>
     </form>
-
-    <div style="margin-top: 1.5rem;">
-        <a style="color: #6366F1; font-size: 0.875rem; font-weight: 500; text-decoration: none;"
-           href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })">
-            ← Quay lại danh sách câu hỏi
-        </a>
-    </div>
 </div>
 
-<script>
-    // Question types configuration
-    const QUESTION_TYPE_CONFIG = {
-        // Types with multiple choice options
-        WITH_OPTIONS: [
-            'MULTIPLE_CHOICE', 'CHECKBOXES', 'DROPDOWN', 
-            'RANK_ORDER', 'MULTI_LEVEL_DROPDOWN', 'RATE_THE_CHOICE'
-        ],
-        
-        // Types with rating/numeric input
-        WITH_RATING: [
-            'RATING', 'RATING_SINGLE', 'NPS', 'SLIDER', 
-            'RATING_CHECKBOX', 'CONSTANT_SUM'
-        ],
-        
-        // Types with text input
-        WITH_TEXT: [
-            'SINGLE_TEXTBOX', 'MULTIPLE_TEXTBOX', 
-            'PI_EMAIL', 'PI_NAME', 'PI_ADDRESS', 'PI_OCCUPATION'
-        ],
-        
-        // Types with file upload
-        WITH_UPLOAD: ['UPLOAD', 'SIGNATURE', 'MEDIA_AI_RECOGNITION']
-    };
-
-    let optionCounter = 0;
-
-    function handleQuestionTypeChange(selectElement) {
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
-        const code = selectedOption.getAttribute('data-code');
-        
-        // Set hidden field
-        document.getElementById('questionTypeCode').value = code || '';
-        
-        // Hide all sections
-        document.getElementById('dynamicOptionsArea').style.display = 'none';
-        document.getElementById('choiceOptionsSection').classList.add('hidden');
-        document.getElementById('ratingSection').classList.add('hidden');
-        document.getElementById('textSection').classList.add('hidden');
-        document.getElementById('uploadSection').classList.add('hidden');
-        
-        if (!code) return;
-        
-        // Show relevant section
-        document.getElementById('dynamicOptionsArea').style.display = 'block';
-        
-        if (QUESTION_TYPE_CONFIG.WITH_OPTIONS.includes(code)) {
-            document.getElementById('choiceOptionsSection').classList.remove('hidden');
-            initializeOptions();
-        } 
-        else if (QUESTION_TYPE_CONFIG.WITH_RATING.includes(code)) {
-            document.getElementById('ratingSection').classList.remove('hidden');
-        }
-        else if (QUESTION_TYPE_CONFIG.WITH_TEXT.includes(code)) {
-            document.getElementById('textSection').classList.remove('hidden');
-        }
-        else if (QUESTION_TYPE_CONFIG.WITH_UPLOAD.includes(code)) {
-            document.getElementById('uploadSection').classList.remove('hidden');
-        }
-    }
-
-    function initializeOptions() {
-        const optionsList = document.getElementById('optionsList');
-        optionsList.innerHTML = '';
-        optionCounter = 0;
-        addOption();
-        addOption();
-    }
-
-    function addOption() {
-        const optionsList = document.getElementById('optionsList');
-        const newOption = document.createElement('div');
-        newOption.className = 'option-item';
-        newOption.style.cssText = 'display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;';
-        newOption.innerHTML = `
-            <span style="font-weight: 600; color: #6B7280; min-width: 30px;">${optionCounter + 1}.</span>
-            <input type="text" 
-                   name="Options[${optionCounter}]" 
-                   placeholder="Nhập lựa chọn ${optionCounter + 1}"
-                   style="flex: 1; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem;" />
-            <button type="button" 
-                    onclick="removeOption(this)"
-                    title="Xóa lựa chọn"
-                    style="padding: 0.5rem 0.75rem; background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; border-radius: 0.5rem; cursor: pointer; font-weight: 600;">
-                🗑️
-            </button>
-        `;
-        optionsList.appendChild(newOption);
-        optionCounter++;
-    }
-
-    function removeOption(button) {
-        const optionsList = document.getElementById('optionsList');
-        if (optionsList.children.length > 1) {
-            button.parentElement.remove();
-            reindexOptions();
-        } else {
-            alert('⚠️ Phải có ít nhất 1 lựa chọn!');
-        }
-    }
-
-    function reindexOptions() {
-        const items = document.querySelectorAll('#optionsList .option-item');
-        items.forEach((item, index) => {
-            const span = item.querySelector('span');
-            const input = item.querySelector('input[type="text"]');
-            span.textContent = `${index + 1}.`;
-            input.name = `Options[${index}]`;
-            input.placeholder = `Nhập lựa chọn ${index + 1}`;
-        });
-        optionCounter = items.length;
-    }
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        const selectElement = document.getElementById('questionTypeSelect');
-        if (selectElement.value) {
-            handleQuestionTypeChange(selectElement);
-        }
-    });
-</script>
-
 @section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
+<script>
+(function () {
+    const typeSelect = document.getElementById('QuestionTypeId');
+    const codeHidden = document.getElementById('QuestionTypeCode');
+
+    const optionsPanel = document.getElementById('optionsPanel');
+    const numericPanel = document.getElementById('numericPanel');
+    const maxCharsPanel = document.getElementById('maxCharsPanel');
+    const uploadPanel = document.getElementById('uploadPanel');
+    const matrixPanel = document.getElementById('matrixPanel');
+    const aiPanel = document.getElementById('aiPanel');
+
+    const optionsContainer = document.getElementById('optionsContainer');
+    const addOptionBtn = document.getElementById('addOptionBtn');
+
+    function slugify(s){return (s||'').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)+/g,'');}
+
+    const optionCodes = new Set(['multiple-choice','checkboxes','dropdown','rank-order','rate-the-choice','rating-checkbox','single-choice','multi-level-dropdown','constant-sum','table-dropdown']);
+    const numericCodes = new Set(['rating','slider','number','nps','nps®','nps-','nps10']);
+    const textCodes = new Set(['single-textbox','multiple-textbox','text','textarea','name','basic-information','gender','age-group','mobile-phone','email','education','marital-status','country-and-region','occupation','address','table-text','matrix-text','matrix-text-alt']);
+    const uploadCodes = new Set(['upload','file-upload']);
+    const matrixCodes = new Set(['matrix-radio','matrix-checkbox','matrix-rating','matrix-slider','matrix-text','matrix-text-alt']);
+    const tableCodes = new Set(['table-text','table-values','table-dropdown','table-combination','auto-increment-table']);
+    const aiCodes = new Set(['ai-probing','media-ai-recognition']);
+
+    function key() {
+        const sel = typeSelect.options[typeSelect.selectedIndex];
+        if (!sel) return '';
+        const code = sel.getAttribute('data-code') || '';
+        if (code) return slugify(code);
+        const name = sel.getAttribute('data-name') || sel.textContent || '';
+        return slugify(name);
+    }
+
+    function toggle(node, show){ node.classList.toggle('hidden', !show); }
+
+    function togglePanels() {
+        const k = key();
+        codeHidden.value = k;
+        const supportsOptions = (typeSelect.options[typeSelect.selectedIndex]?.getAttribute('data-supports-options') === 'true');
+
+        toggle(optionsPanel, supportsOptions || optionCodes.has(k));
+        toggle(numericPanel, numericCodes.has(k));
+        toggle(maxCharsPanel, textCodes.has(k));
+        toggle(uploadPanel, uploadCodes.has(k));
+        toggle(matrixPanel, matrixCodes.has(k) || tableCodes.has(k));
+        toggle(aiPanel, aiCodes.has(k));
+
+        if (k.startsWith('nps')) {
+            const minEl = document.querySelector('input[name="MinValue"]');
+            const maxEl = document.querySelector('input[name="MaxValue"]');
+            const stepEl = document.querySelector('input[name="Step"]');
+            if (minEl && !minEl.value) minEl.value = '0';
+            if (maxEl && !maxEl.value) maxEl.value = '10';
+            if (stepEl && !stepEl.value) stepEl.value = '1';
+        }
+    }
+
+    function reindexOptions(){
+        document.querySelectorAll('.option-row').forEach((row, idx)=>{
+            const input = row.querySelector('input[type="text"]');
+            if (input) { input.name = `Options[${idx}]`; input.placeholder = `Nhập lựa chọn ${idx + 1}`; }
+        });
+    }
+
+    function addOptionRow(val){
+        const idx = document.querySelectorAll('.option-row').length;
+        const row = document.createElement('div');
+        row.className = 'flex gap-2 items-center option-row';
+        row.innerHTML = `
+            <input type="text" name="Options[${idx}]" value="${val || ''}" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập lựa chọn ${idx + 1}" />
+            <button type="button" class="remove-option px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">Xóa</button>`;
+        optionsContainer.appendChild(row);
+    }
+
+    if (addOptionBtn) addOptionBtn.addEventListener('click', ()=>{ addOptionRow(''); reindexOptions(); });
+    document.addEventListener('click', (e)=>{ if (e.target && e.target.classList.contains('remove-option')) { e.target.closest('.option-row').remove(); reindexOptions(); }});
+
+    typeSelect.addEventListener('change', togglePanels);
+    togglePanels();
+})();
+</script>
 }

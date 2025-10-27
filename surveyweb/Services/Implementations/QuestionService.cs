@@ -1,4 +1,4 @@
-using SurveyWeb.Data.Models;
+﻿using SurveyWeb.Data.Models;
 using SurveyWeb.Repositories.Interfaces;
 using SurveyWeb.Services.Interfaces;
 
@@ -7,116 +7,122 @@ namespace SurveyWeb.Services.Implementations
     public class QuestionService : IQuestionService
     {
         private readonly IQuestionRepository _questionRepo;
-        private readonly ISurveyRepository _surveyRepo;
 
-        public QuestionService(IQuestionRepository questionRepo, ISurveyRepository surveyRepo)
+        public QuestionService(IQuestionRepository questionRepo)
         {
             _questionRepo = questionRepo;
-            _surveyRepo = surveyRepo;
         }
 
-        public async Task<IEnumerable<question>> GetSurveyQuestionsAsync(Guid surveyId)
+        public async Task<IReadOnlyList<question>> GetSurveyQuestionsAsync(Guid surveyId)
+            => (await _questionRepo.GetBySurveyAsync(surveyId)).ToList();
+
+        public Task<question?> GetQuestionByIdAsync(Guid questionId)
+            => _questionRepo.GetByIdAsync(questionId);
+
+        public async Task<IReadOnlyList<questionType>> GetQuestionTypesAsync()
+            => (await _questionRepo.GetAllQuestionTypesAsync()).ToList();
+
+        public async Task<question> CreateQuestionAsync(Guid surveyId, question entity)
         {
-            return await _questionRepo.GetBySurveyAsync(surveyId);
-        }
-
-        public async Task<IEnumerable<questionType>> GetQuestionTypesAsync()
-        {
-            return await _questionRepo.GetAllQuestionTypesAsync();
-        }
-
-        public async Task<question?> GetQuestionByIdAsync(Guid id)
-        {
-            return await _questionRepo.GetByIdAsync(id);
-        }
-
-        public async Task<question> CreateQuestionAsync(Guid surveyId, question input)
-        {
-            // Validate survey exists
-            var survey = await _surveyRepo.GetByIdAsync(surveyId);
-            if (survey == null)
-            {
-                throw new ArgumentException($"Survey with ID {surveyId} not found.");
-            }
-
-            // Set default values
-            if (input._id == Guid.Empty)
-                input._id = Guid.NewGuid();
-
-            input.surveyId = surveyId;
-
-            // If orderNo not set, get max order and add 1
-            if (input.orderNo == 0)
-            {
-                var existingQuestions = await _questionRepo.GetBySurveyAsync(surveyId);
-                input.orderNo = existingQuestions.Any() 
-                    ? existingQuestions.Max(q => q.orderNo) + 1 
-                    : 1;
-            }
-
-            await _questionRepo.AddAsync(input);
+            if (entity._id == Guid.Empty) entity._id = Guid.NewGuid();
+            entity.surveyId = surveyId;
+            await _questionRepo.AddAsync(entity);
             await _questionRepo.SaveChangesAsync();
-
-            return input;
+            return entity;
         }
 
-        public async Task<bool> UpdateQuestionAsync(Guid id, string? text, int orderNo, bool isRequired, int? questionTypeId)
+        public async Task<bool> DeleteQuestionAsync(Guid questionId)
         {
-            var existing = await _questionRepo.GetByIdAsync(id);
-            if (existing == null)
+            var question = await _questionRepo.GetByIdAsync(questionId);
+            if (question == null)
                 return false;
 
-            existing.text = text ?? string.Empty;
+            // Xóa tất cả questionOptions trước khi xóa question
+            await _questionRepo.DeleteQuestionOptionsByQuestionIdAsync(questionId);
+
+            // Sau đó xóa question
+            await _questionRepo.DeleteAsync(questionId);
+            await _questionRepo.SaveChangesAsync();
+            
+            return true;
+        }
+
+        public async Task AddQuestionOptionsAsync(Guid questionId, IEnumerable<string> options)
+        {
+            var list = options.Where(o => !string.IsNullOrWhiteSpace(o)).ToList();
+            var entities = new List<questionOption>();
+            for (int i = 0; i < list.Count; i++)
+            {
+                entities.Add(new questionOption
+                {
+                    _id = Guid.NewGuid(),
+                    questionId = questionId,
+                    optionText = list[i],
+                    orderNo = i + 1
+                });
+            }
+            await _questionRepo.AddOptionsAsync(entities);
+            await _questionRepo.SaveChangesAsync();
+        }
+
+        public async Task<IReadOnlyList<string>> GetQuestionOptionsAsync(Guid questionId)
+        {
+            var opts = await _questionRepo.GetQuestionOptionsByQuestionIdAsync(questionId);
+            return opts.OrderBy(o => o.orderNo).Select(o => o.optionText ?? "").ToList();
+        }
+
+        public async Task<bool> UpdateQuestionAsync(
+            Guid id,
+            string? text,
+            int orderNo,
+            bool isRequired,
+            int? questionTypeId,
+            string? typeCode,
+            double? minValue,
+            double? maxValue,
+            double? step,
+            int? maxChars,
+            string? allowedMime,
+            int? maxFiles,
+            int? maxFileSizeMB,
+            string? matrixRowsJson,
+            string? matrixColsJson,
+            string? scaleLabelsJson,
+            bool aiProbeEnabled)
+        {
+            var existing = await _questionRepo.GetByIdAsync(id);
+            if (existing == null) return false;
+
+            existing.text = text ?? existing.text;
             existing.orderNo = orderNo;
             existing.isRequired = isRequired;
             existing.questionTypeId = questionTypeId;
+            existing.type = string.IsNullOrWhiteSpace(typeCode) ? existing.type : typeCode;
+
+            existing.minValue = minValue;
+            existing.maxValue = maxValue;
+            existing.step = step;
+            existing.maxChars = maxChars;
+
+            existing.allowedMime = allowedMime;
+            existing.maxFiles = maxFiles;
+            existing.maxFileSizeMB = maxFileSizeMB;
+
+            existing.matrixRowsJson = matrixRowsJson;
+            existing.matrixColsJson = matrixColsJson;
+            existing.scaleLabelsJson = scaleLabelsJson;
+
+            existing.aiProbeEnabled = aiProbeEnabled;
 
             await _questionRepo.UpdateAsync(existing);
             await _questionRepo.SaveChangesAsync();
-
             return true;
         }
 
-        public async Task<bool> DeleteQuestionAsync(Guid id)
+        public async Task ReplaceQuestionOptionsAsync(Guid questionId, IEnumerable<string> options)
         {
-            var existing = await _questionRepo.GetByIdAsync(id);
-            if (existing == null)
-                return false;
-
-            await _questionRepo.DeleteAsync(id);
-            await _questionRepo.SaveChangesAsync();
-
-            return true;
-        }
-
-        public async Task AddQuestionOptionsAsync(Guid questionId, List<string> options)
-        {
-            if (options == null || !options.Any())
-                return;
-
-            var questionOptions = new List<questionOption>();
-            
-            for (int i = 0; i < options.Count; i++)
-            {
-                if (!string.IsNullOrWhiteSpace(options[i]))
-                {
-                    questionOptions.Add(new questionOption
-                    {
-                        _id = Guid.NewGuid(),
-                        questionId = questionId,
-                        optionText = options[i],
-                        orderNo = i + 1,
-                        isExclusive = false,
-                        isOther = false
-                    });
-                }
-            }
-
-            if (questionOptions.Any())
-            {
-                await _questionRepo.AddOptionsAsync(questionOptions);
-                await _questionRepo.SaveChangesAsync();
-            }
+            await _questionRepo.DeleteQuestionOptionsByQuestionIdAsync(questionId);
+            await AddQuestionOptionsAsync(questionId, options);
         }
     }
 }
