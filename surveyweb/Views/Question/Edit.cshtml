@@ -1,0 +1,118 @@
+@model SurveyWeb.Controllers.QuestionEditViewModel
+
+@{
+    ViewData["Title"] = "Ch?nh s?a câu h?i";
+}
+
+<div class="max-w-xl mx-auto p-6">
+    <div class="mb-4">
+        <div class="text-xs text-gray-500">Kh?o sát</div>
+        <div class="text-lg font-semibold text-gray-900">@Model.SurveyTitle</div>
+    </div>
+
+    <h1 class="text-xl font-bold text-gray-900 mb-4">Ch?nh s?a câu h?i</h1>
+
+    <form asp-action="Edit"
+          asp-route-surveyId="@Model.SurveyId"
+          asp-route-id="@Model.QuestionId"
+          method="post"
+          class="space-y-5 bg-white border border-gray-200 rounded-lg shadow p-5">
+
+        @Html.AntiForgeryToken()
+
+        <!-- N?i dung câu h?i -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">N?i dung câu h?i</label>
+            <textarea name="Text"
+                      rows="3"
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Ví d?: B?n hài lòng m?c nào v?i d?ch v? c?a chúng tôi?">@Model.Text</textarea>
+            <span class="text-red-600 text-xs"></span>
+        </div>
+
+        <!-- Lo?i câu h?i -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Lo?i câu h?i</label>
+            <select name="QuestionTypeId"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">-- Ch?n lo?i câu h?i --</option>
+                @foreach (var t in Model.AvailableTypes)
+                {
+                    @if (Model.QuestionTypeId == t.Id)
+                    {
+                        <option value="@t.Id" selected>@t.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@t.Id">@t.Name</option>
+                    }
+                }
+            </select>
+            <div class="text-[11px] text-gray-400 leading-snug">
+                Ví d?: Multiple Choice, Rating, Slider, v.v.
+            </div>
+        </div>
+
+        <!-- Th? t? hi?n th? -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Th? t? (OrderNo)</label>
+            <input name="OrderNo"
+                   type="number"
+                   value="@Model.OrderNo"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   placeholder="1, 2, 3..." />
+            <div class="text-[11px] text-gray-400 leading-snug">
+                Thay ??i th? t? hi?n th? câu h?i.
+            </div>
+        </div>
+
+        <!-- B?t bu?c tr? l?i -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">B?t bu?c tr? l?i?</label>
+            <select name="IsRequired"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @if (Model.IsRequired)
+                {
+                    <option value="false">Không</option>
+                    <option value="true" selected>Có</option>
+                }
+                else
+                {
+                    <option value="false" selected>Không</option>
+                    <option value="true">Có</option>
+                }
+            </select>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ViewData.ModelState.Root?.Errors.FirstOrDefault()?.ErrorMessage))
+        {
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                @ViewData.ModelState.Root.Errors.FirstOrDefault()?.ErrorMessage
+            </div>
+        }
+
+        <!-- Nút -->
+        <div class="flex justify-end gap-3 pt-4">
+            <a href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })"
+               class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">
+                H?y
+            </a>
+
+            <button type="submit"
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
+                C?p nh?t câu h?i
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-6">
+        <a class="text-indigo-600 text-sm hover:underline"
+           href="@Url.Action("List","Question", new { surveyId = Model.SurveyId })">
+            ? Quay l?i danh sách câu h?i
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}

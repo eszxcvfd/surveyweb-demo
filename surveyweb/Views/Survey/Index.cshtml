@@ -1,0 +1,72 @@
+﻿@model IEnumerable<SurveyWeb.Data.Models.survey>
+
+@{
+    ViewData["Title"] = "Danh sách khảo sát";
+}
+
+<div class="max-w-5xl mx-auto p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Danh sách khảo sát</h1>
+
+        <a class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
+           href="@Url.Action("Create", "Survey")">
+            + Tạo khảo sát
+        </a>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200 text-left text-gray-600 uppercase text-xs font-semibold">
+                <tr>
+                    <th class="px-4 py-3">Tiêu đề</th>
+                    <th class="px-4 py-3">Trạng thái</th>
+                    <th class="px-4 py-3 whitespace-nowrap">Ngày tạo</th>
+                    <th class="px-4 py-3">OwnerId</th>
+                    <th class="px-4 py-3">Hành động</th>
+                </tr>
+            </thead>
+
+            <tbody class="divide-y divide-gray-200">
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var s in Model)
+                    {
+                        <tr class="hover:bg-gray-50 align-top">
+                            <td class="px-4 py-3 font-medium text-gray-900">
+                                <div class="text-sm font-semibold text-gray-900">@s.title</div>
+                                <div class="text-gray-500 text-xs leading-snug">@s.description</div>
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-700">
+                                @s.status
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-700 text-xs whitespace-nowrap">
+                                @s.createdAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-700 text-[10px] break-all max-w-[140px]">
+                                @s.ownerId
+                            </td>
+
+                            <td class="px-4 py-3">
+                                <a href="@Url.Action("List", "Question", new { surveyId = s._id })"
+                                   class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                    Quản lý câu hỏi →
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="px-4 py-6 text-center text-gray-500 text-sm">
+                            Chưa có khảo sát nào.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

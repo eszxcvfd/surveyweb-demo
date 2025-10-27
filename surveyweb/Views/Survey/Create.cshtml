@@ -1,0 +1,136 @@
+﻿@model SurveyWeb.Data.Models.survey
+
+@{
+    ViewData["Title"] = "Tạo khảo sát";
+}
+
+<div class="max-w-xl mx-auto p-6">
+    <h1 class="text-xl font-bold text-gray-900 mb-4">Tạo khảo sát mới</h1>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+            <strong>Có lỗi xảy ra:</strong>
+            <ul class="list-disc list-inside mt-2">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <form asp-action="Create"
+          method="post"
+          class="space-y-5 bg-white border border-gray-200 rounded-lg shadow p-5">
+        @Html.AntiForgeryToken()
+
+        <!-- Tiêu đề -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Tiêu đề khảo sát</label>
+            <input asp-for="title"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   placeholder="Khảo sát mức độ hài lòng dịch vụ..." />
+            <span asp-validation-for="title" class="text-red-600 text-xs"></span>
+        </div>
+
+        <!-- Mô tả -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Mô tả (tuỳ chọn)</label>
+            <textarea asp-for="description"
+                      rows="3"
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Nêu mục đích khảo sát, đối tượng tham gia..."></textarea>
+            <span asp-validation-for="description" class="text-red-600 text-xs"></span>
+        </div>
+
+        <!-- OwnerId -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">OwnerId (tạm thời nhập GUID user)</label>
+            <input asp-for="ownerId"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   placeholder="Paste GUID từ database users" />
+            <span asp-validation-for="ownerId" class="text-red-600 text-xs"></span>
+            <div class="text-[11px] text-gray-400 leading-snug">
+                Sau này sẽ tự động = người đăng nhập, không cần nhập tay.
+            </div>
+        </div>
+
+        <!-- Cài đặt cơ bản -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Cho phép ẩn danh?</label>
+                <select asp-for="isAnonymous"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="false">Không</option>
+                    <option value="true">Có</option>
+                </select>
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Chặn trả lời trùng?</label>
+                <select asp-for="preventDuplicate"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="false">Không</option>
+                    <option value="true">Có</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- MaxResponses -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Giới hạn số phản hồi (tuỳ chọn)</label>
+            <input asp-for="maxResponses"
+                   type="number"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                   placeholder="VD: 1000" />
+        </div>
+
+        <!-- OpenAt / CloseAt -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Thời gian mở (OpenAt)</label>
+                <input asp-for="openAt"
+                       type="datetime-local"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+
+            <div class="space-y-1">
+                <label class="block text-sm font-medium text-gray-700">Thời gian đóng (CloseAt)</label>
+                <input asp-for="closeAt"
+                       type="datetime-local"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="space-y-1">
+            <label class="block text-sm font-medium text-gray-700">Trạng thái</label>
+            <select asp-for="status"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">-- Chọn trạng thái --</option>
+                <option value="draft">draft</option>
+                <option value="active">active</option>
+                <option value="closed">closed</option>
+            </select>
+            <div class="text-[11px] text-gray-400 leading-snug">Không chọn = mặc định "draft".</div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex justify-end gap-3 pt-4">
+            <a href="@Url.Action("Index","Survey")"
+               class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">
+                Hủy
+            </a>
+
+            <button type="submit"
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
+                Lưu khảo sát
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}
