@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SurveyWeb.Data.Models;
 using SurveyWeb.Services.Interfaces;
 using System.Diagnostics;
@@ -223,7 +224,7 @@ namespace SurveyWeb.Controllers
             if (q == null) return NotFound("Question not found");
 
             var questionTypes = await _questionService.GetQuestionTypesAsync();
-            var options = await _questionService.GetQuestionOptionsAsync(id); // trả về List<string> hoặc list model
+            var options = await _questionService.GetQuestionOptionsAsync(id); // strings of current question options
 
             var vm = new QuestionEditViewModel
             {
@@ -257,6 +258,26 @@ namespace SurveyWeb.Controllers
                     .ToList()
             };
 
+            // Câu hỏi đích: chỉ các câu có orderNo lớn hơn câu hiện tại
+            var allQuestions = await _questionService.GetSurveyQuestionsAsync(surveyId);
+            ViewBag.TargetQuestions = allQuestions
+                .Where(x => x.orderNo > q.orderNo)
+                .OrderBy(x => x.orderNo)
+                .ToList();
+
+            var optionPairs = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+            ViewBag.CurrentOptions = optionPairs;
+
+            // Lựa chọn của câu hiện tại (để condition “chọn đáp án cụ thể”)
+            ViewBag.CurrentOptionTexts = options?.ToList() ?? new List<string>();
+
+            // Logic
+            var (rule, cond) = await _questionService.GetLogicForQuestionWithConditionAsync(id);
+            ViewBag.SelectedLogicType = rule?.logicType; // "display" | "skip" | "display_option"
+            ViewBag.SelectedTargetQuestionId = rule?.targetId; // với skip/display
+            ViewBag.SelectedConditionOperator = cond?._operator; // "answered" | "option_equals" | ...
+            ViewBag.SelectedRightOptionId = cond?.optionId;
+
             return View(vm);
         }
 
@@ -266,40 +287,35 @@ namespace SurveyWeb.Controllers
         {
             if (!ModelState.IsValid)
             {
-                var survey = await _surveyService.GetAsync(surveyId);
                 var questionTypes = await _questionService.GetQuestionTypesAsync();
-
                 var vmRetry = new QuestionEditViewModel
                 {
                     QuestionId = id,
                     SurveyId = surveyId,
-                    SurveyTitle = survey?.title ?? "",
+                    SurveyTitle = (await _surveyService.GetAsync(surveyId))?.title ?? "",
                     Text = form.Text,
                     OrderNo = form.OrderNo,
                     IsRequired = form.IsRequired,
                     QuestionTypeId = form.QuestionTypeId,
                     AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
                     {
-                        Id = qt.questionTypeId,
-                        Name = qt.displayName,
-                        Code = qt.internalCode,
-                        SupportsOptions = qt.supportsOptions
+                        Id = qt.questionTypeId, Name = qt.displayName, Code = qt.internalCode, SupportsOptions = qt.supportsOptions
                     }).ToList(),
-                    MinValue = form.MinValue,
-                    MaxValue = form.MaxValue,
-                    Step = form.Step,
-                    MaxChars = form.MaxChars,
-                    AllowedMime = form.AllowedMime,
-                    MaxFiles = form.MaxFiles,
-                    MaxFileSizeMB = form.MaxFileSizeMB,
-                    MatrixRowsJson = form.MatrixRowsJson,
-                    MatrixColsJson = form.MatrixColsJson,
-                    ScaleLabelsJson = form.ScaleLabelsJson,
+                    MinValue = form.MinValue, MaxValue = form.MaxValue, Step = form.Step, MaxChars = form.MaxChars,
+                    AllowedMime = form.AllowedMime, MaxFiles = form.MaxFiles, MaxFileSizeMB = form.MaxFileSizeMB,
+                    MatrixRowsJson = form.MatrixRowsJson, MatrixColsJson = form.MatrixColsJson, ScaleLabelsJson = form.ScaleLabelsJson,
                     AiProbeEnabled = form.AiProbeEnabled,
-                    Options = (form.Options ?? new List<string>())
-                        .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
-                        .ToList()
+                    Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList()
                 };
+
+                // NẠP LẠI VIEWBAG để form render đầy đủ
+                var currentQForList = await _questionService.GetQuestionByIdAsync(id);
+                var allQsForList = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                ViewBag.TargetQuestions = allQsForList
+                    .Where(x => currentQForList == null || x.orderNo > currentQForList.orderNo)
+                    .OrderBy(x => x.orderNo)
+                    .ToList();
+                ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
 
                 return View(vmRetry);
             }
@@ -309,13 +325,12 @@ namespace SurveyWeb.Controllers
             if (allInSurvey.Any(x => x.orderNo == form.OrderNo && x._id != id))
             {
                 ModelState.AddModelError("OrderNo", "Thứ tự này đã được sử dụng. Vui lòng chọn số khác.");
-                var survey = await _surveyService.GetAsync(surveyId);
                 var questionTypes = await _questionService.GetQuestionTypesAsync();
                 var vmRetry = new QuestionEditViewModel
                 {
                     QuestionId = id,
                     SurveyId = surveyId,
-                    SurveyTitle = survey?.title ?? "",
+                    SurveyTitle = (await _surveyService.GetAsync(surveyId))?.title ?? "",
                     Text = form.Text,
                     OrderNo = form.OrderNo,
                     IsRequired = form.IsRequired,
@@ -340,14 +355,23 @@ namespace SurveyWeb.Controllers
                     AiProbeEnabled = form.AiProbeEnabled,
                     Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList()
                 };
+
+                // NẠP LẠI VIEWBAG
+                var currentQForList = await _questionService.GetQuestionByIdAsync(id);
+                var allQsForList = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                ViewBag.TargetQuestions = allQsForList
+                    .Where(x => currentQForList == null || x.orderNo > currentQForList.orderNo)
+                    .OrderBy(x => x.orderNo)
+                    .ToList();
+                ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+
                 return View(vmRetry);
             }
 
             try
             {
                 // Cập nhật phần thông tin câu hỏi chính (bao gồm type + cấu hình)
-                // THÊM CÁC THAM SỐ MỚI VÀO ĐÂY
-                    var updated = await _questionService.UpdateQuestionAsync(
+                var updated = await _questionService.UpdateQuestionAsync(
                     id,
                     form.Text,
                     form.OrderNo,
@@ -358,13 +382,13 @@ namespace SurveyWeb.Controllers
                     form.MaxValue,
                     form.Step,
                     form.MaxChars,
-                    form.AllowedMime,        // ← Thêm
-                    form.MaxFiles,           // ← Thêm
-                    form.MaxFileSizeMB,      // ← Thêm
-                    form.MatrixRowsJson,     // ← Thêm
-                    form.MatrixColsJson,     // ← Thêm
-                    form.ScaleLabelsJson,    // ← Thêm
-                    form.AiProbeEnabled      // ← Thêm
+                    form.AllowedMime,
+                    form.MaxFiles,
+                    form.MaxFileSizeMB,
+                    form.MatrixRowsJson,
+                    form.MatrixColsJson,
+                    form.ScaleLabelsJson,
+                    form.AiProbeEnabled
                 );
 
                 if (!updated)
@@ -373,27 +397,210 @@ namespace SurveyWeb.Controllers
                     return RedirectToAction("List", new { surveyId });
                 }
 
+                // LẤY CÂU HỎI HIỆN TẠI ĐỂ VALIDATE LOGIC
+                var currentQ = await _questionService.GetQuestionByIdAsync(id);
+                if (currentQ == null)
+                {
+                    TempData["ErrorMessage"] = "Không tìm thấy câu hỏi hiện tại.";
+                    return RedirectToAction("List", new { surveyId });
+                }
+
+                // Nếu loại hỗ trợ options: thay thế danh sách lựa chọn
+                var oldOptionsPairs = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+
                 // Nếu loại hỗ trợ options: thay thế danh sách lựa chọn
                 if (form.Options != null)
                 {
                     await _questionService.ReplaceQuestionOptionsAsync(id, form.Options);
                 }
 
+                // Map lại OptionId nếu điều kiện dựa trên đáp án
+                Guid? effectiveOptionId = form.RightOptionId;
+                var isOptionBased = string.Equals(form.ConditionOperator, "option_equals", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(form.ConditionOperator, "not_equals", StringComparison.OrdinalIgnoreCase);
+
+                if (isOptionBased && form.RightOptionId.HasValue)
+                {
+                    // Tìm text của option cũ theo RightOptionId
+                    var oldSelected = (oldOptionsPairs ?? Array.Empty<SurveyWeb.Services.Interfaces.QuestionOptionPair>())
+                        .FirstOrDefault(o => o.Id == form.RightOptionId.Value);
+
+                    // Lấy danh sách option mới sau Replace
+                    var newOptionsPairs = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+
+                    // Map theo Text (không phân biệt hoa/thường)
+                    var mapped = newOptionsPairs.FirstOrDefault(o =>
+                        string.Equals(o.Text?.Trim(), oldSelected.Text?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                    if (mapped != default)
+                    {
+                        effectiveOptionId = mapped.Id;
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("RightOptionId", "Đáp án đã bị thay đổi hoặc xóa sau khi chỉnh sửa options. Vui lòng chọn lại.");
+                        var questionTypes = await _questionService.GetQuestionTypesAsync();
+                        var vmRetry = new QuestionEditViewModel
+                        {
+                            QuestionId = id,
+                            SurveyId = surveyId,
+                            SurveyTitle = (await _surveyService.GetAsync(surveyId))?.title ?? "",
+                            Text = form.Text,
+                            OrderNo = form.OrderNo,
+                            IsRequired = form.IsRequired,
+                            QuestionTypeId = form.QuestionTypeId,
+                            AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
+                            {
+                                Id = qt.questionTypeId, Name = qt.displayName, Code = qt.internalCode, SupportsOptions = qt.supportsOptions
+                            }).ToList(),
+                            MinValue = form.MinValue, MaxValue = form.MaxValue, Step = form.Step, MaxChars = form.MaxChars,
+                            AllowedMime = form.AllowedMime, MaxFiles = form.MaxFiles, MaxFileSizeMB = form.MaxFileSizeMB,
+                            MatrixRowsJson = form.MatrixRowsJson, MatrixColsJson = form.MatrixColsJson, ScaleLabelsJson = form.ScaleLabelsJson,
+                            AiProbeEnabled = form.AiProbeEnabled,
+                            Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList()
+                        };
+                        var allQuestions = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                        ViewBag.TargetQuestions = allQuestions.Where(x => x.orderNo > currentQ.orderNo).OrderBy(x => x.orderNo).ToList();
+                        ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+                        return View(vmRetry);
+                    }
+                }
+
+                // Logic processing
+                switch ((form.LogicType ?? "").Trim().ToLowerInvariant())
+                {
+                    case "display":
+                    {
+                        if (form.LogicTargetQuestionId.HasValue)
+                        {
+                            // Target phải nằm sau
+                            var target = await _questionService.GetQuestionByIdAsync(form.LogicTargetQuestionId.Value);
+                            if (target == null || target.orderNo <= currentQ.orderNo)
+                            {
+                                ModelState.AddModelError("LogicTargetQuestionId", "Câu hỏi đích phải có thứ tự lớn hơn câu hiện tại.");
+                                var survey = await _surveyService.GetAsync(surveyId);
+                                var questionTypes = await _questionService.GetQuestionTypesAsync();
+                                var vmRetry = new QuestionEditViewModel
+                                {
+                                    QuestionId = id,
+                                    SurveyId = surveyId,
+                                    SurveyTitle = survey?.title ?? "",
+                                    Text = form.Text,
+                                    OrderNo = form.OrderNo,
+                                    IsRequired = form.IsRequired,
+                                    QuestionTypeId = form.QuestionTypeId,
+                                    AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
+                                    {
+                                        Id = qt.questionTypeId, Name = qt.displayName, Code = qt.internalCode, SupportsOptions = qt.supportsOptions
+                                    }).ToList(),
+                                    MinValue = form.MinValue, MaxValue = form.MaxValue, Step = form.Step, MaxChars = form.MaxChars,
+                                    AllowedMime = form.AllowedMime, MaxFiles = form.MaxFiles, MaxFileSizeMB = form.MaxFileSizeMB,
+                                    MatrixRowsJson = form.MatrixRowsJson,
+                                    MatrixColsJson = form.MatrixColsJson,
+                                    ScaleLabelsJson = form.ScaleLabelsJson,
+                                    AiProbeEnabled = form.AiProbeEnabled,
+                                    Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList()
+                                };
+                                // Nạp lại dữ liệu ViewBag để render
+                                var allQuestions = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                                ViewBag.TargetQuestions = allQuestions.Where(x => x.orderNo > currentQ.orderNo).OrderBy(x => x.orderNo).ToList();
+                                ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+                                return View(vmRetry);
+                            }
+
+                            // Điều kiện: dùng operator (answered | option_equals)
+                            await _questionService.UpsertDisplayLogicAsync(
+                                surveyId,
+                                form.LogicTargetQuestionId.Value,
+                                id,
+                                form.ConditionOperator ?? "answered",
+                                null, null, null,
+                                effectiveOptionId // dùng OptionId đã map
+                            );
+                        }
+                        else
+                        {
+                            await _questionService.DeleteLogicForQuestionAsync(id);
+                        }
+                        break;
+                    }
+
+                    case "skip":
+                    {
+                        if (form.LogicTargetQuestionId.HasValue)
+                        {
+                            var target = await _questionService.GetQuestionByIdAsync(form.LogicTargetQuestionId.Value);
+                            if (target == null || target.orderNo <= currentQ.orderNo)
+                            {
+                                ModelState.AddModelError("LogicTargetQuestionId", "Câu hỏi đích phải có thứ tự lớn hơn câu hiện tại.");
+                                var survey = await _surveyService.GetAsync(surveyId);
+                                var questionTypes = await _questionService.GetQuestionTypesAsync();
+                                var vmRetry = new QuestionEditViewModel
+                                {
+                                    QuestionId = id,
+                                    SurveyId = surveyId,
+                                    SurveyTitle = survey?.title ?? "",
+                                    Text = form.Text,
+                                    OrderNo = form.OrderNo,
+                                    IsRequired = form.IsRequired,
+                                    QuestionTypeId = form.QuestionTypeId,
+                                    AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
+                                    {
+                                        Id = qt.questionTypeId, Name = qt.displayName, Code = qt.internalCode, SupportsOptions = qt.supportsOptions
+                                    }).ToList(),
+                                    MinValue = form.MinValue, MaxValue = form.MaxValue, Step = form.Step, MaxChars = form.MaxChars,
+                                    AllowedMime = form.AllowedMime, MaxFiles = form.MaxFiles, MaxFileSizeMB = form.MaxFileSizeMB,
+                                    MatrixRowsJson = form.MatrixRowsJson,
+                                    MatrixColsJson = form.MatrixColsJson,
+                                    ScaleLabelsJson = form.ScaleLabelsJson,
+                                    AiProbeEnabled = form.AiProbeEnabled,
+                                    Options = (form.Options ?? new List<string>()).Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" }).ToList()
+                                };
+                                var allQuestions = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                                ViewBag.TargetQuestions = allQuestions.Where(x => x.orderNo > currentQ.orderNo).OrderBy(x => x.orderNo).ToList();
+                                ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+                                return View(vmRetry);
+                            }
+
+                            await _questionService.UpsertSkipLogicAsync(
+                                surveyId,
+                                id,
+                                form.LogicTargetQuestionId.Value,
+                                form.ConditionOperator ?? "answered",
+                                null, null, null,
+                                effectiveOptionId // dùng OptionId đã map
+                            );
+                        }
+                        else
+                        {
+                            await _questionService.DeleteLogicForQuestionAsync(id);
+                        }
+                        break;
+                    }
+
+                    case "display_option":
+                        // Giữ nguyên nếu bạn dùng, hoặc có thể tạm bỏ nếu chưa cần
+                        break;
+
+                    default:
+                        await _questionService.DeleteLogicForQuestionAsync(id);
+                        break;
+                }
+
                 TempData["SuccessMessage"] = "Đã cập nhật câu hỏi thành công!";
                 return RedirectToAction("List", new { surveyId });
             }
-            catch (Exception ex)
+            catch (DbUpdateException ex)
             {
-                ModelState.AddModelError("", "Lỗi khi cập nhật câu hỏi: " + ex.Message);
+                var inner = ex.InnerException?.Message ?? ex.Message;
+                ModelState.AddModelError("", "Lỗi khi cập nhật câu hỏi: " + inner);
 
-                var survey = await _surveyService.GetAsync(surveyId);
                 var questionTypes = await _questionService.GetQuestionTypesAsync();
-
                 var vmError = new QuestionEditViewModel
                 {
                     QuestionId = id,
                     SurveyId = surveyId,
-                    SurveyTitle = survey?.title ?? "",
+                    SurveyTitle = (await _surveyService.GetAsync(surveyId))?.title ?? "",
                     Text = form.Text,
                     OrderNo = form.OrderNo,
                     IsRequired = form.IsRequired,
@@ -420,6 +627,64 @@ namespace SurveyWeb.Controllers
                         .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
                         .ToList()
                 };
+
+                // Nạp lại ViewBag để render form đầy đủ
+                var currentQForList = await _questionService.GetQuestionByIdAsync(id);
+                var allQsForList = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                ViewBag.TargetQuestions = allQsForList
+                    .Where(x => currentQForList == null || x.orderNo > currentQForList.orderNo)
+                    .OrderBy(x => x.orderNo)
+                    .ToList();
+                ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
+
+                return View(vmError);
+            }
+            catch (Exception ex)
+            {
+                var inner = ex.InnerException?.Message ?? ex.Message;
+                ModelState.AddModelError("", "Lỗi khi cập nhật câu hỏi: " + inner);
+
+                var questionTypes = await _questionService.GetQuestionTypesAsync();
+                var vmError = new QuestionEditViewModel
+                {
+                    QuestionId = id,
+                    SurveyId = surveyId,
+                    SurveyTitle = (await _surveyService.GetAsync(surveyId))?.title ?? "",
+                    Text = form.Text,
+                    OrderNo = form.OrderNo,
+                    IsRequired = form.IsRequired,
+                    QuestionTypeId = form.QuestionTypeId,
+                    AvailableTypes = questionTypes.Select(qt => new QuestionTypeOption
+                    {
+                        Id = qt.questionTypeId,
+                        Name = qt.displayName,
+                        Code = qt.internalCode,
+                        SupportsOptions = qt.supportsOptions
+                    }).ToList(),
+                    MinValue = form.MinValue,
+                    MaxValue = form.MaxValue,
+                    Step = form.Step,
+                    MaxChars = form.MaxChars,
+                    AllowedMime = form.AllowedMime,
+                    MaxFiles = form.MaxFiles,
+                    MaxFileSizeMB = form.MaxFileSizeMB,
+                    MatrixRowsJson = form.MatrixRowsJson,
+                    MatrixColsJson = form.MatrixColsJson,
+                    ScaleLabelsJson = form.ScaleLabelsJson,
+                    AiProbeEnabled = form.AiProbeEnabled,
+                    Options = (form.Options ?? new List<string>())
+                        .Select((o, i) => new QuestionOptionItem { OrderNo = i + 1, Text = o ?? "" })
+                        .ToList()
+                };
+
+                // Nạp lại ViewBag để render form đầy đủ
+                var currentQForList = await _questionService.GetQuestionByIdAsync(id);
+                var allQsForList = await _questionService.GetSurveyQuestionsAsync(surveyId);
+                ViewBag.TargetQuestions = allQsForList
+                    .Where(x => currentQForList == null || x.orderNo > currentQForList.orderNo)
+                    .OrderBy(x => x.orderNo)
+                    .ToList();
+                ViewBag.CurrentOptions = await _questionService.GetQuestionOptionsWithIdsAsync(id);
 
                 return View(vmError);
             }
@@ -554,7 +819,6 @@ namespace SurveyWeb.Controllers
         public bool IsRequired { get; set; }
         public int? QuestionTypeId { get; set; }
 
-        // Thêm các trường cần post về (giống Create)
         public string? QuestionTypeCode { get; set; }
         public List<string>? Options { get; set; }
         public double? MinValue { get; set; }
@@ -562,7 +826,7 @@ namespace SurveyWeb.Controllers
         public double? Step { get; set; }
         public int? MaxChars { get; set; }
 
-        // New fields
+        // Upload / Matrix / AI
         public string? AllowedMime { get; set; }
         public int? MaxFiles { get; set; }
         public int? MaxFileSizeMB { get; set; }
@@ -570,5 +834,16 @@ namespace SurveyWeb.Controllers
         public string? MatrixColsJson { get; set; }
         public string? ScaleLabelsJson { get; set; }
         public bool AiProbeEnabled { get; set; }
+
+        // Logic
+        public string? LogicType { get; set; } // "", "display", "skip", "display_option"
+        public Guid? LogicSourceQuestionId { get; set; } // parent/condition question
+        public Guid? LogicTargetQuestionId { get; set; } // target jump for skip
+        public string? ConditionOperator { get; set; }   // "answered","equals","gt","lt","contains","not_equals"
+        public string? RightValueText { get; set; }
+        public double? RightValueNumber { get; set; }
+        public DateTime? RightValueDate { get; set; }
+        public Guid? RightOptionId { get; set; }
+        public List<Guid>? OptionIdsToShow { get; set; } // for display_option
     }
 }

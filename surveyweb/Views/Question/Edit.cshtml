@@ -1,7 +1,22 @@
 ﻿@model SurveyWeb.Controllers.QuestionEditViewModel
-
 @{
     ViewData["Title"] = "Chỉnh sửa câu hỏi";
+    string? postedOperator = null;
+    string? postedRightOptionId = null;
+
+    if (Context.Request.Method == "POST" && Context.Request.HasFormContentType)
+    {
+        postedOperator = Context.Request.Form["ConditionOperator"].ToString();
+        postedRightOptionId = Context.Request.Form["RightOptionId"].ToString();
+    }
+    else
+    {
+        postedOperator = (string?)ViewBag.SelectedConditionOperator ?? postedOperator;
+        postedRightOptionId = (ViewBag.SelectedRightOptionId as Guid?)?.ToString() ?? postedRightOptionId;
+    }
+
+    var selectedLogicType = (string?)ViewBag.SelectedLogicType;
+    var selectedTargetId = (Guid?)ViewBag.SelectedTargetQuestionId;
 }
 
 <div class="max-w-3xl mx-auto p-6">
@@ -9,6 +24,19 @@
         <div class="text-xs text-gray-500">Khảo sát</div>
         <div class="text-lg font-semibold text-gray-900">@Model.SurveyTitle</div>
     </div>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+            <strong>Có lỗi xảy ra:</strong>
+            <ul class="list-disc list-inside mt-2">
+                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    <li>@error.ErrorMessage</li>
+                }
+            </ul>
+        </div>
+    }
 
     <h1 class="text-xl font-bold text-gray-900 mb-4">Chỉnh sửa câu hỏi</h1>
 
@@ -32,12 +60,13 @@
                 <option value="">-- Chọn loại câu hỏi --</option>
                 @foreach (var t in Model.AvailableTypes)
                 {
+                    var supportsOptionsAttr = t.SupportsOptions.ToString().ToLowerInvariant();
                     if (Model.QuestionTypeId == t.Id)
                     {
                         <option value="@t.Id"
                                 data-code="@t.Code"
                                 data-name="@t.Name"
-                                data-supports-options="@(t.SupportsOptions.ToString().ToLowerInvariant())"
+                                data-supports-options="@supportsOptionsAttr"
                                 selected="selected">
                             @t.Name
                         </option>
@@ -47,7 +76,7 @@
                         <option value="@t.Id"
                                 data-code="@t.Code"
                                 data-name="@t.Name"
-                                data-supports-options="@(t.SupportsOptions.ToString().ToLowerInvariant())">
+                                data-supports-options="@supportsOptionsAttr">
                             @t.Name
                         </option>
                     }
@@ -96,7 +125,7 @@
                     for (int i = 0; i < opts.Count; i++)
                     {
                         <div class="flex gap-2 items-center option-row" data-index="@i">
-                            <input type="text" name="Options[@i]" value="@opts[i].Text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập lựa chọn @(@i + 1)" />
+                            <input type="text" name="Options[@i]" value="@opts[i].Text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nhập lựa chọn @(i + 1)" />
                             <button type="button" class="remove-option px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-100">Xóa</button>
                         </div>
                     }
@@ -111,22 +140,34 @@
         <div id="numericPanel" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Min</label>
-                <input name="MinValue" type="number" step="any" value="@(Model.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                @{
+                    var minValueStr = Model.MinValue?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                <input name="MinValue" type="number" step="any" value="@minValueStr" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Max</label>
-                <input name="MaxValue" type="number" step="any" value="@(Model.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                @{
+                    var maxValueStr = Model.MaxValue?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                <input name="MaxValue" type="number" step="any" value="@maxValueStr" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Step</label>
-                <input name="Step" type="number" step="any" value="@(Model.Step?.ToString(System.Globalization.CultureInfo.InvariantCulture))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                @{
+                    var stepStr = Model.Step?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                <input name="Step" type="number" step="any" value="@stepStr" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div class="col-span-full text-[11px] text-gray-400 leading-snug">Dùng cho Rating, Slider, Number, NPS (Min=0, Max=10, Step=1).</div>
         </div>
 
         <div id="maxCharsPanel" class="space-y-1 hidden">
             <label class="block text-sm font-medium text-gray-700">Giới hạn ký tự (Max chars)</label>
-            <input name="MaxChars" type="number" value="@(Model.MaxChars?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            @{
+                var maxCharsStr = Model.MaxChars?.ToString() ?? "";
+            }
+            <input name="MaxChars" type="number" value="@maxCharsStr" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             <div class="text-[11px] text-gray-400 leading-snug">Dùng cho Single/Multiple Textbox, Email, Mobile Phone, Name, Address,...</div>
         </div>
 
@@ -137,11 +178,17 @@
             </div>
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Max files</label>
-                <input name="MaxFiles" type="number" value="@(Model.MaxFiles?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                @{
+                    var maxFilesStr = Model.MaxFiles?.ToString() ?? "";
+                }
+                <input name="MaxFiles" type="number" value="@maxFilesStr" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div class="space-y-1">
                 <label class="block text-sm font-medium text-gray-700">Max size (MB)</label>
-                <input name="MaxFileSizeMB" type="number" value="@(Model.MaxFileSizeMB?.ToString() ?? "")" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                @{
+                    var maxFileSizeMBStr = Model.MaxFileSizeMB?.ToString() ?? "";
+                }
+                <input name="MaxFileSizeMB" type="number" value="@maxFileSizeMBStr" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
         </div>
 
@@ -170,7 +217,7 @@
                 @if (Model.AiProbeEnabled)
                 {
                     <option value="false">Tắt</option>
-                    <option value="true" selected>Bật</option>
+                    <option value="true" selected>Có</option>
                 }
                 else
                 {
@@ -179,6 +226,79 @@
                 }
             </select>
             <div class="text-[11px] text-gray-400 leading-snug">Dùng cho AI Probing, Media AI Recognition.</div>
+        </div>
+
+        <!-- Panel: Logic -->
+        <div id="logicPanel" class="space-y-3">
+            <label class="block text-sm font-semibold text-gray-800">Logic rẽ nhánh</label>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="block text-sm text-gray-700">Loại logic</label>
+                    <select name="LogicType" id="LogicType" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">Không dùng</option>
+                        @{
+                            var displaySelected = string.Equals(selectedLogicType, "display", StringComparison.OrdinalIgnoreCase) ? "selected" : "";
+                            var skipSelected = string.Equals(selectedLogicType, "skip", StringComparison.OrdinalIgnoreCase) ? "selected" : "";
+                            var displayOptionSelected = string.Equals(selectedLogicType, "display_option", StringComparison.OrdinalIgnoreCase) ? "selected" : "";
+                        }
+                        <option value="display" selected="@displaySelected">Hiện câu đích khi thoả</option>
+                        <option value="skip" selected="@skipSelected">Nhảy tới câu đích khi thoả</option>
+                        <option value="display_option" selected="@displayOptionSelected">Hiện một số lựa chọn của câu đích</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="block text-sm text-gray-700">Câu hỏi đích (sau câu hiện tại)</label>
+                    <select name="LogicTargetQuestionId" id="LogicTargetQuestionId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">-- chọn --</option>
+                        @foreach (var tq in ViewBag.TargetQuestions as List<SurveyWeb.Data.Models.question> ?? new())
+                        {
+                            var isSelected = (selectedTargetId.HasValue && selectedTargetId.Value == tq._id) ? "selected" : "";
+                            <option value="@tq._id" selected="@isSelected">@($"{tq.orderNo}. {tq.text}")</option>
+                        }
+                    </select>
+                    <span class="text-[11px] text-gray-400">Chỉ hiển thị các câu có thứ tự lớn hơn.</span>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-sm text-gray-700">Điều kiện</label>
+                <select name="ConditionOperator" id="ConditionOperator" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    @{
+                        var answeredSelected = string.Equals(postedOperator, "answered", StringComparison.OrdinalIgnoreCase) ? "selected" : "";
+                        var optionEqualsSelected = string.Equals(postedOperator, "option_equals", StringComparison.OrdinalIgnoreCase) ? "selected" : "";
+                        var notEqualsSelected = string.Equals(postedOperator, "not_equals", StringComparison.OrdinalIgnoreCase) ? "selected" : "";
+                    }
+                    <option value="answered" selected="@answeredSelected">Đã trả lời xong câu hiện tại</option>
+                    <option value="option_equals" selected="@optionEqualsSelected">Chọn đáp án cụ thể của câu hiện tại</option>
+                    <option value="not_equals" selected="@notEqualsSelected">Không chọn đáp án cụ thể</option>
+                </select>
+
+                <div id="optionPicker" class="space-y-1 hidden">
+                    <label class="block text-sm text-gray-700">Chọn đáp án</label>
+                    <select name="RightOptionId" id="RightOptionId" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">-- chọn đáp án --</option>
+                        @foreach (var opt in ViewBag.CurrentOptions as List<SurveyWeb.Services.Interfaces.QuestionOptionPair> ?? new List<SurveyWeb.Services.Interfaces.QuestionOptionPair>())
+                        {
+                            var optionSelected = (postedRightOptionId == opt.Id.ToString()) ? "selected" : "";
+                            <option value="@opt.Id" selected="@optionSelected">@opt.Text</option>
+                        }
+                    </select>
+                    <div class="text-[11px] text-gray-400">
+                        Áp dụng cho các loại câu hỏi có lựa chọn (Multiple Choice, Checkboxes, Dropdown...).
+                    </div>
+                    <!-- Hiển thị lỗi RightOptionId nếu có -->
+                    <span class="text-xs text-red-600">
+                        @ViewData.ModelState["RightOptionId"]?.Errors.FirstOrDefault()?.ErrorMessage
+                    </span>
+                </div>
+            </div>
+
+            <div class="text-[11px] text-gray-400">
+                Nguồn luôn là câu hiện tại. Hệ thống chỉ lưu 1 logic cho mỗi câu.
+                Với Display logic: câu đích xuất hiện khi thoả điều kiện. Với Skip logic: sẽ nhảy tới câu đích.
+            </div>
         </div>
 
         <div class="flex justify-end gap-3 pt-4">
@@ -200,9 +320,38 @@
     const uploadPanel = document.getElementById('uploadPanel');
     const matrixPanel = document.getElementById('matrixPanel');
     const aiPanel = document.getElementById('aiPanel');
+    const logicPanel = document.getElementById('logicPanel');
 
     const optionsContainer = document.getElementById('optionsContainer');
     const addOptionBtn = document.getElementById('addOptionBtn');
+
+    // NEW: toggle option picker by operator (đảm bảo required đúng lúc submit)
+    const opSel = document.getElementById('ConditionOperator');
+    const optionPicker = document.getElementById('optionPicker');
+    const rightOptionSel = document.getElementById('RightOptionId');
+
+    function toggleOptionPicker(){
+        const v = (opSel?.value || '').toLowerCase();
+        const show = v === 'option_equals' || v === 'not_equals';
+        optionPicker?.classList.toggle('hidden', !show);
+        if (rightOptionSel) {
+            if (show) {
+                rightOptionSel.removeAttribute('disabled');
+                rightOptionSel.setAttribute('required','required');
+            } else {
+                rightOptionSel.setAttribute('disabled','disabled');
+                rightOptionSel.removeAttribute('required');
+            }
+        }
+    }
+
+    const postedOperator = '@(postedOperator ?? "")';
+    if (postedOperator) {
+        const opt = Array.from(opSel.options).find(o => o.value.toLowerCase() === postedOperator.toLowerCase());
+        if (opt) opSel.value = opt.value;
+    }
+    toggleOptionPicker();
+    opSel?.addEventListener('change', toggleOptionPicker);
 
     function slugify(s) {
         return (s || '').toString().trim().toLowerCase()
@@ -211,10 +360,9 @@
             .replace(/(^-|-$)+/g, '');
     }
 
-    // map many display names to our categories
     const optionCodes = new Set([
         'multiple-choice','checkboxes','dropdown','rank-order','rate-the-choice','rating-checkbox','single-choice',
-        'multi-level-dropdown','constant-sum','table-dropdown' // table dropdown also uses options list
+        'multi-level-dropdown','constant-sum','table-dropdown'
     ]);
     const numericCodes = new Set(['rating','slider','number','nps','nps®','nps-','nps10']);
     const textCodes = new Set([
@@ -258,7 +406,6 @@
         toggle(matrixPanel, showMatrix);
         toggle(aiPanel, showAi);
 
-        // NPS presets
         if (key.startsWith('nps')) {
             const minEl = document.querySelector('input[name="MinValue"]');
             const maxEl = document.querySelector('input[name="MaxValue"]');
@@ -268,6 +415,23 @@
             if (stepEl && !stepEl.value) stepEl.value = '1';
         }
     }
+
+    if (addOptionBtn) {
+        addOptionBtn.addEventListener('click', () => { 
+            const beforeCount = document.querySelectorAll('.option-row').length;
+            addOptionRow('');
+            reindexOptions();
+        });
+    }
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('remove-option')) {
+            e.target.closest('.option-row').remove();
+            reindexOptions();
+        }
+    });
+
+    typeSelect.addEventListener('change', togglePanels);
+    togglePanels();
 
     function reindexOptions() {
         const rows = document.querySelectorAll('.option-row');
@@ -293,19 +457,6 @@
         `;
         optionsContainer.appendChild(row);
     }
-
-    if (addOptionBtn) {
-        addOptionBtn.addEventListener('click', () => { addOptionRow(''); reindexOptions(); });
-    }
-    document.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('remove-option')) {
-            e.target.closest('.option-row').remove();
-            reindexOptions();
-        }
-    });
-
-    typeSelect.addEventListener('change', togglePanels);
-    togglePanels();
 })();
 </script>
 }

@@ -50,10 +50,16 @@
                             </td>
 
                             <td class="px-4 py-3">
-                                <a href="@Url.Action("List", "Question", new { surveyId = s._id })"
-                                   class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                                    Quản lý câu hỏi →
-                                </a>
+                                <div class="flex flex-col gap-1">
+                                    <a href="@Url.Action("List", "Question", new { surveyId = s._id })"
+                                       class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                        Quản lý câu hỏi →
+                                    </a>
+                                    <a href="@Url.Action("Share", "Survey", new { id = s._id })"
+                                       class="text-green-600 hover:text-green-800 text-sm font-medium">
+                                        Phát hành/Chia sẻ →
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     }

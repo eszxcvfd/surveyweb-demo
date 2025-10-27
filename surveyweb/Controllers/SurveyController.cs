@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SurveyWeb.Data.Models;
 using SurveyWeb.Services.Interfaces;
+using QRCoder;
 
 namespace SurveyWeb.Controllers
 {
@@ -73,6 +74,59 @@ namespace SurveyWeb.Controllers
                 }
                 return View(model);
             }
+        }
+
+        public sealed record ShareViewModel(Guid Id, string Title, string Link);
+
+        // GET /Survey/Share/{id}
+        [HttpGet]
+        public async Task<IActionResult> Share(Guid id)
+        {
+            var survey = await _surveyService.GetAsync(id);
+            if (survey == null) return NotFound("Survey not found");
+
+            // Absolute link to public "Take" endpoint
+            var link = Url.Action(
+                action: nameof(Take),
+                controller: "Survey",
+                values: new { id },
+                protocol: Request.Scheme
+            ) ?? string.Empty;
+
+            var vm = new ShareViewModel(id, survey.title ?? "(untitled)", link);
+            return View(vm);
+        }
+
+        // GET /Survey/Qr/{id} -> returns a PNG QR for the public link
+        [HttpGet]
+        public IActionResult Qr(Guid id)
+        {
+            var link = Url.Action(
+                action: nameof(Take),
+                controller: "Survey",
+                values: new { id },
+                protocol: Request.Scheme
+            ) ?? string.Empty;
+
+            var generator = new QRCodeGenerator();
+            var data = generator.CreateQrCode(link, QRCodeGenerator.ECCLevel.Q);
+            var png = new PngByteQRCode(data).GetGraphic(pixelsPerModule: 8);
+            return File(png, "image/png");
+        }
+
+        // Public landing page for respondents (stub – customize to render your fill UI)
+        // GET /Survey/Take/{id}
+        [HttpGet]
+        public async Task<IActionResult> Take(Guid id)
+        {
+            var survey = await _surveyService.GetAsync(id);
+            if (survey == null) return NotFound("Survey not found");
+
+            // Optional: gate by status
+            // if (!string.Equals(survey.status, "active", StringComparison.OrdinalIgnoreCase))
+            //     return BadRequest("Survey is not active.");
+
+            return View(survey);
         }
     }
 }

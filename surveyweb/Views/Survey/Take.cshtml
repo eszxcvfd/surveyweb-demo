@@ -1,0 +1,19 @@
+﻿@model SurveyWeb.Data.Models.survey
+@{
+    ViewData["Title"] = "Trả lời khảo sát";
+}
+
+<div class="max-w-3xl mx-auto p-6">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">@Model.title</h1>
+    @if (!string.IsNullOrWhiteSpace(Model.description))
+    {
+        <p class="text-gray-600 mb-4">@Model.description</p>
+    }
+
+    <div class="rounded border border-yellow-200 bg-yellow-50 text-yellow-800 p-4 text-sm mb-6">
+        Đây là trang công khai để người dùng trả lời khảo sát. Hãy thay thế nội dung này bằng UI điền câu hỏi thực tế của bạn.
+    </div>
+
+    <a href="@Url.Action("Index","Survey")"
+       class="text-sm text-indigo-600 hover:text-indigo-800">Về trang chủ</a>
+</div>

@@ -1,0 +1,51 @@
+﻿@model SurveyWeb.Controllers.SurveyController.ShareViewModel
+@{
+    ViewData["Title"] = "Phát hành khảo sát";
+}
+
+<div class="max-w-xl mx-auto p-6">
+    <h1 class="text-2xl font-bold text-gray-900 mb-4">Phát hành khảo sát</h1>
+
+    <div class="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+        <div>
+            <div class="text-sm text-gray-600">Tiêu đề</div>
+            <div class="text-lg font-semibold text-gray-900">@Model.Title</div>
+        </div>
+
+        <div>
+            <div class="text-sm text-gray-600 mb-1">Link công khai</div>
+            <div class="flex gap-2">
+                <input type="text"
+                       readonly
+                       value="@Model.Link"
+                       class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm" />
+                <button type="button"
+                        class="bg-indigo-600 text-white px-3 py-2 rounded text-sm"
+                        onclick="navigator.clipboard.writeText('@Model.Link'); this.textContent='Đã copy'; setTimeout(()=>this.textContent='Copy',1500);">
+                    Copy
+                </button>
+            </div>
+            <div class="mt-2">
+                <a href="@Model.Link" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm">Mở link</a>
+            </div>
+        </div>
+
+        <div>
+            <div class="text-sm text-gray-600 mb-2">QR code</div>
+            <img src="@Url.Action("Qr", "Survey", new { id = Model.Id })"
+                 alt="Survey QR"
+                 class="border border-gray-200 rounded p-2 bg-white" />
+        </div>
+
+        <div class="text-xs text-gray-500">
+            Gợi ý: In/đính QR trên poster, email, mạng xã hội hoặc gửi trực tiếp link cho người trả lời.
+        </div>
+    </div>
+
+    <div class="mt-6">
+        <a href="@Url.Action("Index","Survey")"
+           class="px-4 py-2 rounded border border-gray-300 text-gray-700 text-sm hover:bg-gray-100">
+            Quay lại danh sách
+        </a>
+    </div>
+</div>
