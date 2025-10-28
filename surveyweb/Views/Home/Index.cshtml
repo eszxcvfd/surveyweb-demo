@@ -1,8 +1,85 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Trang chủ";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container mt-5">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="text-center">
+        <h1 class="display-4 mb-4">📊 Chào mừng đến với SurveyWeb</h1>
+        <p class="lead mb-5">Nền tảng khảo sát trực tuyến hiện đại và dễ sử dụng</p>
+        
+        @if (Context.Session.GetString("UserId") != null)
+        {
+            <div class="alert alert-info">
+                <h5>👋 Xin chào, @Context.Session.GetString("UserName")!</h5>
+                <p class="mb-0">Bạn đã đăng nhập với email: @Context.Session.GetString("UserEmail")</p>
+            </div>
+            <div class="mt-4">
+                <a asp-controller="Survey" asp-action="Index" class="btn btn-primary btn-lg me-2">
+                    <i class="bi bi-clipboard-data"></i> Khảo sát của tôi
+                </a>
+                <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-8">
+                    <div class="card shadow-lg">
+                        <div class="card-body p-5">
+                            <h3 class="card-title mb-4">Bắt đầu ngay hôm nay</h3>
+                            <p class="card-text mb-4">Đăng ký hoặc đăng nhập để tạo và quản lý các khảo sát của bạn</p>
+                            <div class="d-grid gap-3 d-md-flex justify-content-md-center">
+                                <a asp-controller="Account" asp-action="Register" class="btn btn-primary btn-lg px-5">
+                                    📝 Đăng ký
+                                </a>
+                                <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-lg px-5">
+                                    🔐 Đăng nhập
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-5">
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center p-4">
+                            <div class="fs-1 mb-3">✏️</div>
+                            <h5 class="card-title">Tạo khảo sát dễ dàng</h5>
+                            <p class="card-text">Giao diện thân thiện, tạo khảo sát chỉ trong vài phút</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center p-4">
+                            <div class="fs-1 mb-3">📊</div>
+                            <h5 class="card-title">Phân tích kết quả</h5>
+                            <p class="card-text">Xem báo cáo chi tiết và trực quan về phản hồi</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-center p-4">
+                            <div class="fs-1 mb-3">🔗</div>
+                            <h5 class="card-title">Chia sẻ linh hoạt</h5>
+                            <p class="card-text">Chia sẻ khảo sát qua link hoặc email một cách dễ dàng</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
 </div>
